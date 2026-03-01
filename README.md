@@ -6,7 +6,7 @@ A custom-built **NDIS Plan Management CRM** for registered NDIS Plan Management 
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Next.js 14 + shadcn/ui (TypeScript) |
+| **Frontend** | Next.js 15 + shadcn/ui (TypeScript) |
 | **Backend** | FastAPI (Python 3.11) |
 | **Database** | PostgreSQL 15 |
 | **Cache / Queue** | Redis 7 + Celery |
