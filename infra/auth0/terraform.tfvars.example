@@ -1,0 +1,4 @@
+auth0_domain        = "your-tenant.au.auth0.com"
+auth0_client_id     = "your-management-api-client-id"
+auth0_client_secret = "your-management-api-client-secret"
+environment         = "prod"
