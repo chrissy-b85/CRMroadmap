@@ -120,10 +120,15 @@ npm run dev
 
 ## GCP Setup
 
+For full infrastructure setup, see [GCP Infrastructure](GCP_INFRASTRUCTURE.md).
+
+Quick steps:
+
 1. Install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
 2. Authenticate: `gcloud auth login`
-3. Set your project: `gcloud config set project YOUR_PROJECT_ID`
-4. Create a service account and download the JSON key
-5. Set `GCP_PROJECT_ID` and `GCP_SERVICE_ACCOUNT_KEY` in `backend/.env`
+3. Set your project: `gcloud config set project ndis-crm-prod`
+4. Run the bootstrap script: `./infra/scripts/bootstrap.sh`
+5. Deploy infrastructure: `cd infra/terraform && terraform init && terraform apply`
+6. Populate Secret Manager secrets (see [GCP Infrastructure — Secret Manager](GCP_INFRASTRUCTURE.md#5-secret-manager))
 
-> **Note:** GCP services (Cloud Run, Cloud SQL, GCS, Document AI) are configured during Sprint 1. The local setup uses Docker Compose with a local PostgreSQL instance instead of Cloud SQL.
+> **Note:** The local Docker Compose setup uses a local PostgreSQL container instead of Cloud SQL. Cloud infrastructure is used for production deployments only.
