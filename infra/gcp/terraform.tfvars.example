@@ -1,0 +1,8 @@
+project_id      = "ndis-crm-prod"
+region          = "australia-southeast1"
+environment     = "prod"
+db_instance_tier = "db-g1-small"
+
+# Update these with your actual container image URIs after building and pushing
+backend_image  = "australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:latest"
+frontend_image = "australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/frontend:latest"
