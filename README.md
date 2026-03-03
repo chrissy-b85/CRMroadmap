@@ -58,4 +58,5 @@ CRMroadmap/
 ## Documentation
 
 - [Getting Started](docs/GETTING_STARTED.md)
+- [GCP Infrastructure](docs/GCP_INFRASTRUCTURE.md)
 - [Project Roadmap](ROADMAP.md)
