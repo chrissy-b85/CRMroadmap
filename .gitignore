@@ -57,3 +57,12 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Terraform
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
