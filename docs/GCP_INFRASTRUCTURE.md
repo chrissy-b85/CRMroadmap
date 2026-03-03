@@ -1,231 +1,347 @@
-# GCP Infrastructure
+# GCP Infrastructure — NDIS CRM
 
-This document describes the Google Cloud Platform infrastructure for the NDIS CRM project, managed with Terraform.
+**Project:** `ndis-crm-prod`
+**Region:** `australia-southeast1` (Sydney) — Australian data sovereignty
+**Managed by:** Terraform (`infra/terraform/`) or gcloud CLI (`infra/scripts/setup-gcp.sh`)
 
-## Architecture Overview
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#1-architecture-overview)
+2. [Resources](#2-resources)
+3. [Service Accounts & IAM](#3-service-accounts--iam)
+4. [Networking](#4-networking)
+5. [Secret Manager](#5-secret-manager)
+6. [First-Time Setup](#6-first-time-setup)
+7. [Ongoing Operations](#7-ongoing-operations)
+8. [Security Considerations](#8-security-considerations)
+
+---
+
+## 1. Architecture Overview
 
 ```
-                        ┌─────────────────────────────────────────┐
-                        │           GCP Project: ndis-crm-prod     │
-                        │           Region: australia-southeast1    │
-                        │                                           │
-                        │  ┌──────────────┐  ┌──────────────────┐  │
-                        │  │  Cloud Run   │  │   Cloud Run      │  │
-           Users ──────►│  │  Frontend    │─►│   Backend        │  │
-                        │  │  (Next.js    │  │   (FastAPI        │  │
-                        │  │   port 3000) │  │    port 8000)    │  │
-                        │  └──────────────┘  └────────┬─────────┘  │
-                        │                             │             │
-                        │         ┌───────────────────┼──────────┐  │
-                        │         │                   │          │  │
-                        │  ┌──────▼──────┐  ┌─────────▼──────┐  │  │
-                        │  │  Cloud SQL  │  │  Secret Manager│  │  │
-                        │  │ PostgreSQL  │  │  (credentials) │  │  │
-                        │  │     15      │  └────────────────┘  │  │
-                        │  └─────────────┘                      │  │
-                        │         │                              │  │
-                        │  ┌──────▼──────────────────────────┐  │  │
-                        │  │        Cloud Storage (GCS)       │  │  │
-                        │  │  invoices | documents | statements│  │  │
-                        │  └─────────────────────────────────-┘  │  │
-                        │         │                              │  │
-                        │  ┌──────▼──────┐                      │  │
-                        │  │ Document AI │                      │  │
-                        │  │  Invoice    │                      │  │
-                        │  │  Processor  │                      │  │
-                        │  └─────────────┘                      │  │
-                        └─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     ndis-crm-prod  (australia-southeast1)               │
+│                                                                          │
+│  ┌───────────────────────┐      ┌──────────────────────────────────────┐ │
+│  │  Cloud Run            │      │  Cloud SQL (PostgreSQL 15)           │ │
+│  │  ndis-crm-backend     │─────▶│  ndis-crm-postgres                  │ │
+│  │  (FastAPI, port 8000) │      │  Private IP · HA (REGIONAL)         │ │
+│  └──────────┬────────────┘      └──────────────────────────────────────┘ │
+│             │ VPC Connector                                               │
+│  ┌──────────▼────────────┐      ┌──────────────────────────────────────┐ │
+│  │  Cloud Run            │      │  GCS Bucket: documents               │ │
+│  │  ndis-crm-frontend    │      │  Versioning · No public access       │ │
+│  │  (Next.js, port 3000) │      │  Signed URLs only                    │ │
+│  └───────────────────────┘      └──────────────────────────────────────┘ │
+│                                                                          │
+│  ┌───────────────────────┐      ┌──────────────────────────────────────┐ │
+│  │  Document AI          │      │  GCS Bucket: backups                 │ │
+│  │  Invoice Parser       │      │  Cloud SQL export target             │ │
+│  │  (INVOICE_PROCESSOR)  │      │  NEARLINE · 90-day retention         │ │
+│  └───────────────────────┘      └──────────────────────────────────────┘ │
+│                                                                          │
+│  ┌───────────────────────┐      ┌──────────────────────────────────────┐ │
+│  │  Secret Manager       │      │  Artifact Registry                   │ │
+│  │  12 secrets           │      │  ndis-crm (Docker)                   │ │
+│  └───────────────────────┘      └──────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Components
+---
 
-| Component | Resource | Purpose |
+## 2. Resources
+
+### Cloud Run
+
+| Service | Image | Port | Min | Max | Notes |
+|---|---|---|---|---|---|
+| `ndis-crm-backend` | `…/ndis-crm/backend:latest` | 8000 | 1 | 10 | VPC connector, secrets mounted |
+| `ndis-crm-frontend` | `…/ndis-crm/frontend:latest` | 3000 | 1 | 5 | Public access; backend URL injected |
+
+Both services are deployed in `australia-southeast1`. The backend uses the VPC connector to access Cloud SQL over a private IP. Both services are publicly accessible (Auth0 JWT enforces authentication in the application layer).
+
+### Cloud SQL
+
+| Property | Value |
+|---|---|
+| **Instance name** | `ndis-crm-postgres` |
+| **Database version** | PostgreSQL 15 |
+| **Tier** | `db-g1-small` (upgradeable) |
+| **Availability** | `REGIONAL` (High Availability with automatic failover) |
+| **Storage** | 20 GB SSD, auto-grow enabled |
+| **Connectivity** | Private IP only (no public endpoint) |
+| **Backups** | Automated daily at 02:00 UTC, 30 backups retained |
+| **PITR** | Point-in-time recovery enabled, 7 days transaction logs |
+| **Deletion protection** | Enabled |
+| **Database name** | `ndis_crm` |
+| **Application user** | `ndis_crm_app` |
+
+**Connection:** Cloud Run connects via the VPC connector using the private IP. Local development uses the [Cloud SQL Auth Proxy](https://cloud.google.com/sql/docs/postgres/auth-proxy).
+
+### Google Cloud Storage
+
+| Bucket | Storage Class | Purpose | Versioning | Public Access |
+|---|---|---|---|---|
+| `ndis-crm-prod-documents` | STANDARD | Plans, invoices, agreements, statements, identity documents | Enabled (3 versions) | `enforced` (blocked) |
+| `ndis-crm-prod-backups` | NEARLINE | Cloud SQL export backups | Disabled | `enforced` (blocked) |
+
+Document access is exclusively via time-limited [signed URLs](https://cloud.google.com/storage/docs/access-control/signed-urls) generated by the backend API.
+
+### Document AI
+
+| Property | Value |
+|---|---|
+| **Processor type** | `INVOICE_PROCESSOR` |
+| **Display name** | `NDIS CRM Invoice Parser` |
+| **Location** | `us` (Document AI multi-region; data processed transiently) |
+| **Confidence threshold** | < 85% → flagged for manual review |
+
+The processor ID is stored in Secret Manager (`document-ai-processor-id`) and accessed by the backend at runtime.
+
+### Artifact Registry
+
+| Repository | Format | Location |
 |---|---|---|
-| **Cloud Run** | `ndis-crm-backend` | FastAPI backend API (port 8000) |
-| **Cloud Run** | `ndis-crm-frontend` | Next.js frontend (port 3000) |
-| **Cloud SQL** | `ndis-crm-db` (PostgreSQL 15) | Primary relational database |
-| **Cloud Storage** | `ndis-crm-invoices` | Invoice PDF uploads |
-| **Cloud Storage** | `ndis-crm-documents` | Participant documents |
-| **Cloud Storage** | `ndis-crm-statements` | PDF statements |
-| **Document AI** | `ndis-crm-invoice-parser` | Automated invoice OCR and parsing |
-| **Secret Manager** | 9 secrets | Credentials and API keys |
-| **IAM** | 2 service accounts | Least-privilege access for backend and frontend |
+| `ndis-crm` | Docker | `australia-southeast1` |
+
+Container images pushed by CI/CD:
+- `australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:TAG`
+- `australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/frontend:TAG`
 
 ---
 
-## Prerequisites
+## 3. Service Accounts & IAM
 
-Before deploying the infrastructure, ensure you have:
+### `ndis-crm-backend@ndis-crm-prod.iam.gserviceaccount.com`
 
-1. **Terraform** v1.5 or later — [Install Terraform](https://developer.hashicorp.com/terraform/install)
-2. **Google Cloud CLI** — [Install gcloud](https://cloud.google.com/sdk/docs/install)
-3. A GCP project named `ndis-crm-prod` with **billing enabled**
-4. Owner or Editor permissions on the GCP project
-5. A GCS bucket named `ndis-crm-prod-tfstate` for Terraform remote state
+Used by the Cloud Run **backend** service at runtime.
 
-### Create the Terraform state bucket
+| Role | Purpose |
+|---|---|
+| `roles/cloudsql.client` | Connect to Cloud SQL via Auth Proxy |
+| `roles/storage.objectAdmin` on `ndis-crm-prod-documents` | Read/write document objects |
+| `roles/secretmanager.secretAccessor` | Access secrets at runtime |
+| `roles/documentai.apiUser` | Submit documents for OCR processing |
+
+### `ndis-crm-frontend@ndis-crm-prod.iam.gserviceaccount.com`
+
+Used by the Cloud Run **frontend** (Next.js) service at runtime. Read-only access to secrets required for SSR.
+
+| Role | Purpose |
+|---|---|
+| `roles/secretmanager.secretAccessor` | Read Auth0 client ID and domain at runtime |
+
+### `ndis-crm-deploy@ndis-crm-prod.iam.gserviceaccount.com`
+
+Used by GitHub Actions CI/CD pipelines for deployment.
+
+| Role | Purpose |
+|---|---|
+| `roles/run.developer` | Deploy new Cloud Run revisions |
+| `roles/artifactregistry.writer` | Push container images |
+| `roles/iam.serviceAccountUser` on `ndis-crm-backend` SA | Act as backend SA when deploying |
+
+---
+
+## 4. Networking
+
+### VPC: `ndis-crm-vpc`
+
+| Resource | Name | CIDR |
+|---|---|---|
+| Network | `ndis-crm-vpc` | Custom mode |
+| Subnet | `ndis-crm-subnet` | `10.0.0.0/24` |
+| Private IP range (Cloud SQL) | `google-managed-services-ndis-crm-vpc` | `10.x.x.0/16` |
+| VPC Serverless Connector | `ndis-crm-connector` | `10.8.0.0/28` |
+
+### VPC Serverless Connector
+
+The connector (`ndis-crm-connector`) enables Cloud Run services to reach resources on the VPC private network (Cloud SQL private IP, Memorystore Redis). Egress is set to `PRIVATE_RANGES_ONLY` so only traffic to RFC-1918 addresses uses the connector.
+
+---
+
+## 5. Secret Manager
+
+All credentials and API keys are stored in Secret Manager. **No secrets are stored in code, environment files, or container images.**
+
+| Secret ID | Description |
+|---|---|
+| `database-url` | PostgreSQL asyncpg connection string |
+| `redis-url` | Redis connection string (Memorystore or external) |
+| `auth0-domain` | Auth0 tenant domain |
+| `auth0-audience` | Auth0 API audience identifier |
+| `auth0-client-id` | Auth0 SPA client ID (frontend) |
+| `auth0-client-secret` | Auth0 backend client secret |
+| `xero-client-id` | Xero OAuth 2.0 client ID |
+| `xero-client-secret` | Xero OAuth 2.0 client secret |
+| `msgraph-client-id` | Microsoft Graph API client ID |
+| `msgraph-client-secret` | Microsoft Graph API client secret |
+| `msgraph-tenant-id` | Microsoft Azure tenant ID |
+| `document-ai-processor-id` | Document AI Invoice Parser processor ID |
+
+### Populating a Secret
 
 ```bash
-gcloud storage buckets create gs://ndis-crm-prod-tfstate \
-  --project=ndis-crm-prod \
-  --location=australia-southeast1 \
-  --uniform-bucket-level-access
+# Example: populate the database-url secret
+echo -n "postgresql+asyncpg://ndis_crm_app:PASSWORD@PRIVATE_IP/ndis_crm" \
+  | gcloud secrets versions add database-url \
+    --project=ndis-crm-prod \
+    --data-file=-
+```
+
+### Rotating a Secret
+
+```bash
+# Add a new version (previous version is automatically disabled after 24 h)
+echo -n "NEW_VALUE" | gcloud secrets versions add SECRET_ID \
+  --project=ndis-crm-prod --data-file=-
 ```
 
 ---
 
-## Deployment Instructions
+## 6. First-Time Setup
 
-### 1. Authenticate with GCP
+### Option A — Terraform (recommended)
 
 ```bash
-gcloud auth login
+# 1. Install Terraform >= 1.5 and the Google Cloud CLI
+
+# 2. Authenticate
 gcloud auth application-default login
-gcloud config set project ndis-crm-prod
-```
 
-### 2. Clone the repository and navigate to the Terraform directory
+# 3. Create the Terraform remote state bucket (one-time)
+chmod +x infra/scripts/bootstrap.sh
+./infra/scripts/bootstrap.sh
 
-```bash
-cd infra/gcp
-```
-
-### 3. Copy and edit the variable values file
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edit `terraform.tfvars` and set values appropriate for your deployment.
-
-### 4. Initialise Terraform
-
-```bash
+# 4. Initialise Terraform
+cd infra/terraform
 terraform init
-```
 
-### 5. Review the execution plan
-
-```bash
+# 5. Preview changes
 terraform plan
-```
 
-Review the output carefully to confirm the resources that will be created.
-
-### 6. Apply the configuration
-
-```bash
+# 6. Apply (creates all resources)
 terraform apply
 ```
 
-Type `yes` when prompted to confirm.
+After applying, populate Secret Manager secrets with actual values (see [Section 5](#5-secret-manager)).
 
-### 7. Retrieve outputs
-
-After a successful apply, retrieve the key outputs:
+### Option B — gcloud CLI Script
 
 ```bash
-terraform output backend_cloud_run_url
-terraform output frontend_cloud_run_url
-terraform output db_connection_name
-terraform output document_ai_processor_id
+# 1. Install and authenticate the Google Cloud CLI
+gcloud auth login
+
+# 2. Run the setup script
+chmod +x infra/scripts/setup-gcp.sh
+./infra/scripts/setup-gcp.sh
+```
+
+The script will print generated passwords and instructions. **Save these immediately.**
+
+### Post-Setup Steps
+
+1. **Populate all secrets** in Secret Manager (see Section 5)
+2. **Build and push container images** to Artifact Registry:
+   ```bash
+   gcloud auth configure-docker australia-southeast1-docker.pkg.dev
+   docker build -t australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:latest ./backend
+   docker push australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:latest
+   ```
+3. **Redeploy Cloud Run services** with production images:
+   ```bash
+   gcloud run deploy ndis-crm-backend \
+     --image=australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:latest \
+     --region=australia-southeast1 --project=ndis-crm-prod
+   ```
+4. **Run database migrations**:
+   ```bash
+   # Connect via Cloud SQL Auth Proxy
+   cloud-sql-proxy ndis-crm-prod:australia-southeast1:ndis-crm-postgres &
+   cd backend && alembic upgrade head
+   ```
+5. **Configure Auth0** (see [GETTING_STARTED.md](GETTING_STARTED.md#auth0-setup))
+
+---
+
+## 7. Ongoing Operations
+
+### Deploying a New Backend Version
+
+```bash
+# Via GitHub Actions (recommended — triggered automatically on push to main)
+
+# Manual deploy
+gcloud run deploy ndis-crm-backend \
+  --image=australia-southeast1-docker.pkg.dev/ndis-crm-prod/ndis-crm/backend:NEW_TAG \
+  --region=australia-southeast1 \
+  --project=ndis-crm-prod
+```
+
+### Accessing the Database (Cloud SQL Auth Proxy)
+
+```bash
+# Install Cloud SQL Auth Proxy:
+# https://cloud.google.com/sql/docs/postgres/auth-proxy#install
+
+cloud-sql-proxy ndis-crm-prod:australia-southeast1:ndis-crm-postgres \
+  --port=5432 &
+
+psql "host=127.0.0.1 port=5432 dbname=ndis_crm user=ndis_crm_app"
+```
+
+### Downloading a Document from GCS
+
+```bash
+# Generate a 1-hour signed URL
+gcloud storage sign-url \
+  gs://ndis-crm-prod-documents/PATH/TO/FILE \
+  --duration=1h \
+  --private-key-file=/path/to/key.json \
+  --service-account=ndis-crm-backend@ndis-crm-prod.iam.gserviceaccount.com
+```
+
+### Terraform State Management
+
+```bash
+# Always plan before applying
+cd infra/terraform
+terraform plan -out=tfplan
+terraform apply tfplan
+
+# View current state
+terraform show
+
+# Refresh state from GCP
+terraform refresh
 ```
 
 ---
 
-## Secret Manager Setup
+## 8. Security Considerations
 
-Terraform creates the Secret Manager secret resources, but does **not** store secret values. You must populate each secret manually after provisioning.
-
-### Populate secrets
-
-```bash
-# Auth0
-echo -n "your-tenant.au.auth0.com" | \
-  gcloud secrets versions add auth0-domain --data-file=-
-
-echo -n "https://your-api-identifier" | \
-  gcloud secrets versions add auth0-audience --data-file=-
-
-echo -n "YOUR_AUTH0_CLIENT_SECRET" | \
-  gcloud secrets versions add auth0-client-secret --data-file=-
-
-# Note: db-password is automatically generated and stored by Terraform.
-# No manual step required.
-
-# Xero
-echo -n "YOUR_XERO_CLIENT_ID" | \
-  gcloud secrets versions add xero-client-id --data-file=-
-
-echo -n "YOUR_XERO_CLIENT_SECRET" | \
-  gcloud secrets versions add xero-client-secret --data-file=-
-
-# Outlook / Microsoft Graph
-echo -n "YOUR_OUTLOOK_CLIENT_ID" | \
-  gcloud secrets versions add outlook-client-id --data-file=-
-
-echo -n "YOUR_OUTLOOK_CLIENT_SECRET" | \
-  gcloud secrets versions add outlook-client-secret --data-file=-
-
-# Document AI — populate after first apply to get processor ID
-terraform output document_ai_processor_id | \
-  gcloud secrets versions add document-ai-processor-id --data-file=-
-```
-
----
-
-## IAM Roles Explanation
-
-### `ndis-crm-backend` Service Account
-
-| Role | Purpose |
+| Control | Implementation |
 |---|---|
-| `roles/cloudsql.client` | Connect to Cloud SQL instance via Cloud SQL Auth Proxy |
-| `roles/storage.objectAdmin` | Read/write objects in all three GCS buckets |
-| `roles/secretmanager.secretAccessor` | Access all application secrets at runtime |
-| `roles/documentai.apiUser` | Call Document AI to process invoice PDFs |
+| **Australian Data Sovereignty** | All resources in `australia-southeast1` (Sydney) |
+| **Encryption at rest** | AES-256 via GCP default CMEK (Cloud SQL + GCS) |
+| **Encryption in transit** | TLS 1.3 enforced for all Cloud Run and Cloud SQL connections |
+| **No public database endpoint** | Cloud SQL private IP only; access via VPC connector or Auth Proxy |
+| **No public bucket access** | `public_access_prevention = enforced` on all buckets |
+| **Document access control** | Signed URLs with configurable expiry (≤ 1 hour) |
+| **Secrets management** | All credentials in Secret Manager; none in code or images |
+| **Least-privilege IAM** | Service accounts have only the minimum required roles |
+| **GCS versioning** | Enabled on documents bucket — deleted files can be recovered |
+| **Database deletion protection** | Enabled on Cloud SQL instance |
+| **Audit logging** | GCP Audit Logs enabled for all data-access operations |
+| **Container images** | Stored in Artifact Registry (not Docker Hub) in the same region |
 
-### `ndis-crm-frontend` Service Account
+### Important: Never commit to version control
 
-| Role | Purpose |
-|---|---|
-| `roles/run.invoker` | Allow the service to invoke Cloud Run services |
+- Service account JSON key files
+- `.env` files with real values
+- Any file containing credentials or API keys
 
-The frontend service account is intentionally minimal. The frontend only serves the Next.js app and calls the backend API — it does not interact with GCP services directly.
-
----
-
-## Terraform Files Reference
-
-| File | Description |
-|---|---|
-| `main.tf` | Root config — Terraform settings, GCP provider, remote state backend |
-| `variables.tf` | Input variables with defaults |
-| `outputs.tf` | Output values exported after `terraform apply` |
-| `terraform.tfvars.example` | Example variable values to copy and edit |
-| `apis.tf` | Enable required GCP APIs |
-| `iam.tf` | Service accounts and project-level IAM role bindings |
-| `cloud_run.tf` | Cloud Run services for backend and frontend |
-| `cloud_sql.tf` | Cloud SQL PostgreSQL 15 instance, database, and user |
-| `storage.tf` | GCS buckets for invoices, documents, and statements |
-| `document_ai.tf` | Document AI processor for invoice parsing |
-| `secret_manager.tf` | Secret Manager secrets and per-secret IAM bindings |
-
----
-
-## Region
-
-All resources are deployed to **`australia-southeast1`** (Sydney), except Document AI which uses **`us`** (Document AI processors are only available in `us` and `eu` multi-regions). The backend is configured to call the Document AI endpoint with the correct regional project path.
-
----
-
-## Destroying the Infrastructure
-
-> **Warning:** This will permanently delete all resources including the Cloud SQL instance and GCS bucket contents.
-
-```bash
-# First remove deletion protection from Cloud SQL
-terraform apply -var="..." # after editing deletion_protection = false in cloud_sql.tf
-
-terraform destroy
-```
+Use Secret Manager and the provided `.env.example` templates instead.

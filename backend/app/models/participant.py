@@ -1,9 +1,8 @@
-"""ORM models for Participant and Plan."""
+"""ORM models for Participant (and re-exports Plan for backwards compat)."""
 import uuid
 from datetime import date, datetime
-from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import Boolean, Date, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,7 +15,7 @@ class Participant(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    ndis_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    ndis_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -34,9 +33,11 @@ class Participant(Base):
         nullable=False,
     )
 
-    plans: Mapped[list["Plan"]] = relationship(
+    plans: Mapped[list["Plan"]] = relationship(  # type: ignore[name-defined]
         "Plan", back_populates="participant", cascade="all, delete-orphan"
     )
+    documents = relationship("Document", back_populates="participant")
+    invoices = relationship("Invoice", back_populates="participant")
 
 
 class Plan(Base):
