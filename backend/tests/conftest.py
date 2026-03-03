@@ -52,7 +52,7 @@ async def db_session():
 # Mock auth helpers – bypass Auth0 in tests
 # ---------------------------------------------------------------------------
 
-_MOCK_ADMIN = {"sub": "test|admin", "roles": ["Admin"]}
+_MOCK_ADMIN = {"sub": "test|admin", "https://ndis-crm.com/roles": ["Admin", "Coordinator"]}
 
 
 # ---------------------------------------------------------------------------

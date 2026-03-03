@@ -11,11 +11,6 @@ from fastapi import HTTPException, status
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "")
 
-if not AUTH0_DOMAIN:
-    raise RuntimeError("AUTH0_DOMAIN environment variable is not set")
-if not AUTH0_AUDIENCE:
-    raise RuntimeError("AUTH0_AUDIENCE environment variable is not set")
-
 _jwks_cache: dict[str, Any] | None = None
 _jwks_lock = asyncio.Lock()
 
