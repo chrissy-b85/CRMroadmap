@@ -98,5 +98,6 @@ def require_role(role: str):
 
     return _check
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.participant import get_current_participant
 
-__all__ = ["get_current_user", "require_role"]
+__all__ = ["get_current_user", "get_current_participant", "require_role"]

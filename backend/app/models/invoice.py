@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -49,6 +49,9 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     )
     reviewed_at = Column(DateTime(timezone=True))
     rejection_reason = Column(String(500), nullable=True)
+    participant_approved = Column(Boolean, default=False, nullable=True)
+    participant_approved_at = Column(DateTime(timezone=True), nullable=True)
+    participant_query_message = Column(String(500), nullable=True)
 
     participant = relationship("Participant", back_populates="invoices")
     provider = relationship("Provider", back_populates="invoices")

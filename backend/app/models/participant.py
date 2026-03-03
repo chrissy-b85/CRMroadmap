@@ -26,6 +26,9 @@ class Participant(Base):
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auth0_sub: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, index=True, unique=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

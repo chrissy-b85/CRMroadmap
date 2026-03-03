@@ -24,6 +24,9 @@ export interface Invoice {
   reviewed_by: string | null
   reviewed_at: string | null
   created_at: string
+  participant_approved: boolean | null
+  participant_approved_at: string | null
+  participant_query_message: string | null
 }
 
 export interface InvoiceLineItem {

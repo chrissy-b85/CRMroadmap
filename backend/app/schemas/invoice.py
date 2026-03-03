@@ -33,6 +33,9 @@ class InvoiceOut(BaseModel):
     gcs_json_path: str | None = None
     line_items: list[InvoiceLineItemOut] = []
     created_at: datetime
+    participant_approved: bool | None = None
+    participant_approved_at: datetime | None = None
+    participant_query_message: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
