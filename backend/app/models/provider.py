@@ -1,7 +1,8 @@
 from sqlalchemy import Boolean, Column, String, Text
 from sqlalchemy.orm import relationship
 
-from .base import Base, TimestampMixin, UUIDMixin
+from app.db import Base
+from app.models.base import TimestampMixin, UUIDMixin
 
 
 class Provider(Base, UUIDMixin, TimestampMixin):

@@ -1,0 +1,15 @@
+backend:
+  - changed-files:
+      - any-glob-to-any-file: backend/**
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: frontend/**
+
+devops:
+  - changed-files:
+      - any-glob-to-any-file: infra/**
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: docs/**

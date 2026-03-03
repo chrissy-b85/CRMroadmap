@@ -2,7 +2,8 @@ from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from .base import Base, TimestampMixin, UUIDMixin
+from app.db import Base
+from app.models.base import TimestampMixin, UUIDMixin
 
 
 class Document(Base, UUIDMixin, TimestampMixin):

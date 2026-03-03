@@ -1,7 +1,8 @@
 from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import relationship
 
-from .base import Base, TimestampMixin, UUIDMixin
+from app.db import Base
+from app.models.base import TimestampMixin, UUIDMixin
 
 
 class User(Base, UUIDMixin, TimestampMixin):

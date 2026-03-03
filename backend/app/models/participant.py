@@ -1,21 +1,45 @@
-from sqlalchemy import Boolean, Column, Date, String, Text
-from sqlalchemy.orm import relationship
+"""ORM models for Participant (and re-exports Plan for backwards compat)."""
+import uuid
+from datetime import date, datetime
 
-from .base import Base, TimestampMixin, UUIDMixin
+from sqlalchemy import Boolean, Date, DateTime, String, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db import Base
 
 
-class Participant(Base, UUIDMixin, TimestampMixin):
+class Participant(Base):
     __tablename__ = "participants"
 
-    ndis_number = Column(String(20), unique=True, nullable=False, index=True)
-    first_name = Column(String(100), nullable=False)
-    last_name = Column(String(100), nullable=False)
-    date_of_birth = Column(Date)
-    email = Column(String(255))
-    phone = Column(String(20))
-    address = Column(Text)
-    is_active = Column(Boolean, default=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    ndis_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
-    plans = relationship("Plan", back_populates="participant")
+    plans: Mapped[list["Plan"]] = relationship(  # type: ignore[name-defined]
+        "Plan", back_populates="participant", cascade="all, delete-orphan"
+    )
     documents = relationship("Document", back_populates="participant")
     invoices = relationship("Invoice", back_populates="participant")
+
+
+# Re-export Plan so that ``from app.models.participant import Plan`` continues
+# to work for code written against the initial participant-only module layout.
+from app.models.plan import Plan as Plan  # noqa: E402, F401

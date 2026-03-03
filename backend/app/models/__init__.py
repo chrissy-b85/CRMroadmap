@@ -1,17 +1,14 @@
-from .audit_log import AuditLog
-from .base import Base, TimestampMixin, UUIDMixin
-from .document import Document
-from .email_thread import EmailThread
-from .invoice import Invoice
-from .invoice_line_item import InvoiceLineItem
-from .participant import Participant
-from .plan import Plan
-from .provider import Provider
-from .support_category import SupportCategory
-from .user import User
+"""ORM model package.
+
+Import models individually from their respective modules, e.g.::
+
+    from app.models.participant import Participant
+    from app.models.invoice import Invoice
+
+For Alembic autogenerate, all models are imported in ``alembic/env.py``.
+"""
 
 __all__ = [
-    "Base",
     "UUIDMixin",
     "TimestampMixin",
     "Participant",
