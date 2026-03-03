@@ -9,25 +9,28 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "16.1.6",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "@auth0/nextjs-auth0": "^3.5.0",
+    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-slot": "^1.0.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.379.0",
+    "next": "16.1.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.71.2",
     "tailwind-merge": "^2.3.0",
-    "lucide-react": "^0.379.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^18.3.0",
-    "tailwindcss": "^4.2.1",
-    "postcss": "^8.4.38",
     "autoprefixer": "^10.4.19",
     "eslint": "^10.0.2",
-    "eslint-config-next": "15.2.9"
+    "eslint-config-next": "15.2.9",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.4.5"
   }
 }
