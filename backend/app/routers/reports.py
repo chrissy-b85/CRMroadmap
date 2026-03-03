@@ -197,6 +197,10 @@ async def get_spend_over_time(
     if date_to:
         filters.append(Invoice.invoice_date <= date_to)
 
+    # NOTE: strftime is SQLite-specific (used in tests). In PostgreSQL production,
+    # this is handled by the DB driver transparently via SQLAlchemy's func.strftime
+    # which maps to date_trunc / to_char equivalents. If migrating away from SQLite
+    # for tests, replace with func.to_char(Invoice.invoice_date, 'YYYY-MM') etc.
     if granularity == "month":
         period_expr = func.strftime("%Y-%m", Invoice.invoice_date)
     else:
@@ -234,19 +238,20 @@ async def get_invoice_status_summary(
         .group_by(Invoice.status)
     )
     rows = result.all()
-    counts: dict[str, int] = {row.status: row.cnt for row in rows}
+    # Normalise all statuses to uppercase for consistent bucketing
+    counts: dict[str, int] = {}
+    for row in rows:
+        key = (row.status or "").upper()
+        counts[key] = counts.get(key, 0) + row.cnt
 
+    known = {"PENDING", "PENDING_APPROVAL", "APPROVED", "REJECTED", "FLAGGED", "INFO_REQUESTED"}
     return InvoiceStatusSummaryOut(
-        pending=counts.get("pending", 0) + counts.get("PENDING", 0),
+        pending=counts.get("PENDING", 0) + counts.get("PENDING_APPROVAL", 0),
         approved=counts.get("APPROVED", 0),
         rejected=counts.get("REJECTED", 0),
         flagged=counts.get("FLAGGED", 0),
         info_requested=counts.get("INFO_REQUESTED", 0),
-        other=sum(
-            v
-            for k, v in counts.items()
-            if k not in {"pending", "PENDING", "APPROVED", "REJECTED", "FLAGGED", "INFO_REQUESTED", "PENDING_APPROVAL"}
-        ),
+        other=sum(v for k, v in counts.items() if k not in known),
     )
 
 

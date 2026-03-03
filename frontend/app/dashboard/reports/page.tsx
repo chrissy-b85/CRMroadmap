@@ -65,7 +65,9 @@ export default function ReportsPage() {
     try {
       const data = await getSpendByCategory({ dateFrom, dateTo })
       setCategoryData(data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load spend by category:', err)
+    }
     setCategoryLoading(false)
   }, [dateFrom, dateTo])
 
@@ -74,7 +76,9 @@ export default function ReportsPage() {
     try {
       const data = await getSpendOverTime({ granularity, dateFrom, dateTo })
       setTimeData(data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load spend over time:', err)
+    }
     setTimeLoading(false)
   }, [dateFrom, dateTo, granularity])
 
@@ -83,7 +87,9 @@ export default function ReportsPage() {
     try {
       const data = await getProviderAnalytics({ dateFrom, dateTo })
       setProviderData(data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load provider analytics:', err)
+    }
     setProviderLoading(false)
   }, [dateFrom, dateTo])
 
@@ -92,7 +98,9 @@ export default function ReportsPage() {
     try {
       const data = await getFlaggedInvoicesSummary()
       setFlaggedData(data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load flagged invoices:', err)
+    }
     setFlaggedLoading(false)
   }, [])
 
