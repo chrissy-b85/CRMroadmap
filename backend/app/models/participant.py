@@ -1,8 +1,9 @@
 """ORM models for Participant (and re-exports Plan for backwards compat)."""
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -72,6 +73,7 @@ class Plan(Base):
     support_categories: Mapped[list["SupportCategory"]] = relationship(
         "SupportCategory", back_populates="plan", cascade="all, delete-orphan"
     )
+    invoices = relationship("Invoice", back_populates="plan")
 
 
 class SupportCategory(Base):
@@ -84,14 +86,28 @@ class SupportCategory(Base):
         UUID(as_uuid=True), ForeignKey("plans.id"), nullable=False
     )
     ndis_support_category: Mapped[str] = mapped_column(String(200), nullable=False)
+    ndis_support_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
     budget_allocated: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     budget_spent: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), nullable=False, default=Decimal("0.00")
     )
 
     plan: Mapped["Plan"] = relationship("Plan", back_populates="support_categories")
+    invoice_line_items = relationship("InvoiceLineItem", back_populates="support_category")
 
     @property
     def budget_remaining(self) -> Decimal:
         """Computed remaining budget."""
         return self.budget_allocated - self.budget_spent
+
+    @property
+    def utilisation_percent(self) -> float:
+        """Computed utilisation as a percentage."""
+        if not self.budget_allocated:
+            return 0.0
+        return float(self.budget_spent / self.budget_allocated * 100)
+
+    @property
+    def is_overspent(self) -> bool:
+        """True when budget_spent exceeds budget_allocated."""
+        return self.budget_spent > self.budget_allocated
