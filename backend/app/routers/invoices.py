@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user, require_role
+from app.auth.participant import get_current_participant
 from app.db import get_db
 from app.models.audit_log import AuditLog
 from app.models.invoice import Invoice
@@ -64,6 +65,63 @@ async def list_invoices(
     items = result.scalars().all()
 
     return InvoiceListOut(items=items, total=total, page=page, page_size=page_size)
+
+
+# ---------------------------------------------------------------------------
+# Participant-facing endpoints — registered BEFORE /{invoice_id} so that
+# static path segments are matched first.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/my-invoices", response_model=InvoiceListOut)
+async def get_my_invoices(
+    invoice_status: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    current_participant=Depends(get_current_participant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return invoices belonging to the currently authenticated participant."""
+    query = (
+        select(Invoice)
+        .options(selectinload(Invoice.line_items))
+        .where(Invoice.participant_id == current_participant.id)
+    )
+    count_query = (
+        select(func.count())
+        .select_from(Invoice)
+        .where(Invoice.participant_id == current_participant.id)
+    )
+
+    if invoice_status:
+        query = query.where(Invoice.status == invoice_status)
+        count_query = count_query.where(Invoice.status == invoice_status)
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
+
+    offset = (page - 1) * page_size
+    result = await db.execute(query.offset(offset).limit(page_size))
+    items = result.scalars().all()
+
+    return InvoiceListOut(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post("/push/subscribe", status_code=status.HTTP_204_NO_CONTENT)
+async def subscribe_to_push(
+    subscription: dict,
+    current_participant=Depends(get_current_participant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save a participant's Web Push notification subscription."""
+    from app.services.push_notification_service import save_push_subscription
+
+    await save_push_subscription(db, current_participant.id, subscription)
+
+
+# ---------------------------------------------------------------------------
+# Single-invoice endpoints — dynamic path segments after static ones
+# ---------------------------------------------------------------------------
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
@@ -291,6 +349,113 @@ async def request_info(
     )
     db.add(audit)
     await db.commit()
+    reload_result = await db.execute(
+        select(Invoice)
+        .options(selectinload(Invoice.line_items))
+        .where(Invoice.id == invoice_id)
+    )
+    return reload_result.scalar_one()
+
+
+@router.post("/{invoice_id}/participant-approve", response_model=InvoiceOut)
+async def participant_approve_invoice(
+    invoice_id: UUID,
+    current_participant=Depends(get_current_participant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Participant approves an invoice.
+
+    - Validates the invoice belongs to this participant.
+    - Records ``participant_approved=True`` and ``participant_approved_at``.
+    - Writes an audit log entry.
+    - Invoice stays in PENDING_APPROVAL until staff also approves.
+    """
+    result = await db.execute(
+        select(Invoice)
+        .options(selectinload(Invoice.line_items))
+        .where(Invoice.id == invoice_id)
+    )
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
+    if invoice.participant_id != current_participant.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorised to approve this invoice.",
+        )
+
+    now = datetime.now(tz=timezone.utc)
+    invoice.participant_approved = True
+    invoice.participant_approved_at = now
+
+    audit = AuditLog(
+        action="participant_invoice_approved",
+        entity_type="Invoice",
+        entity_id=invoice.id,
+        new_values={
+            "participant_approved": True,
+            "participant_approved_at": now.isoformat(),
+            "participant_id": str(current_participant.id),
+        },
+    )
+    db.add(audit)
+    await db.commit()
+
+    reload_result = await db.execute(
+        select(Invoice)
+        .options(selectinload(Invoice.line_items))
+        .where(Invoice.id == invoice_id)
+    )
+    return reload_result.scalar_one()
+
+
+@router.post("/{invoice_id}/participant-query", response_model=InvoiceOut)
+async def participant_query_invoice(
+    invoice_id: UUID,
+    message: str,
+    current_participant=Depends(get_current_participant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Participant queries an invoice.
+
+    - Validates the invoice belongs to this participant.
+    - Sets status to ``INFO_REQUESTED`` and records the query message.
+    - Writes an audit log entry.
+    """
+    result = await db.execute(
+        select(Invoice)
+        .options(selectinload(Invoice.line_items))
+        .where(Invoice.id == invoice_id)
+    )
+    invoice = result.scalar_one_or_none()
+    if invoice is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
+    if invoice.participant_id != current_participant.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorised to query this invoice.",
+        )
+
+    invoice.status = "INFO_REQUESTED"
+    invoice.participant_query_message = message
+
+    audit = AuditLog(
+        action="participant_invoice_queried",
+        entity_type="Invoice",
+        entity_id=invoice.id,
+        new_values={
+            "status": "INFO_REQUESTED",
+            "message": message,
+            "participant_id": str(current_participant.id),
+        },
+    )
+    db.add(audit)
+    await db.commit()
+
     reload_result = await db.execute(
         select(Invoice)
         .options(selectinload(Invoice.line_items))

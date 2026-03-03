@@ -16,4 +16,4 @@ celery[redis]>=5.3
 google-cloud-documentai>=2.20
 google-cloud-storage>=2.10
 msal>=1.26
-xero-python>=6.0
+pywebpush>=2.0
