@@ -1,0 +1,62 @@
+name: Run DB Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (staging/production)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+  CLOUD_RUN_REGION: ${{ secrets.CLOUD_RUN_REGION }}
+  BACKEND_IMAGE: australia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ndis-crm/backend
+
+jobs:
+  migrate:
+    name: Run Alembic Migrations
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run migrations via Cloud Run Job
+        run: |
+          gcloud run jobs create ndis-crm-migrate-${{ github.run_id }} \
+            --image ${{ env.BACKEND_IMAGE }}:latest \
+            --region ${{ env.CLOUD_RUN_REGION }} \
+            --command "alembic" \
+            --args "upgrade,head" \
+            --set-secrets DATABASE_URL=database-url:latest \
+            --service-account ${{ env.GCP_SERVICE_ACCOUNT }} \
+            --max-retries 1 \
+            --wait \
+            --project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Clean up migration job
+        if: always()
+        run: |
+          gcloud run jobs delete ndis-crm-migrate-${{ github.run_id }} \
+            --region ${{ env.CLOUD_RUN_REGION }} \
+            --project ${{ env.GCP_PROJECT_ID }} \
+            --quiet || true
