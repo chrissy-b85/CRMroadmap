@@ -1,7 +1,7 @@
 """Shared pytest fixtures for the NDIS CRM backend test suite."""
+
 import uuid
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -52,7 +52,11 @@ async def db_session():
 # Mock auth helpers – bypass Auth0 in tests
 # ---------------------------------------------------------------------------
 
-_MOCK_ADMIN = {"sub": "test|admin", "https://ndis-crm.com/roles": ["Admin", "Coordinator"]}
+_MOCK_ADMIN = {
+    "sub": "test|admin",
+    "roles": ["Admin", "Coordinator"],
+    "https://ndis-crm.com/roles": ["Admin", "Coordinator"],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -123,4 +127,3 @@ async def sample_participant(test_client):
     resp = await test_client.post("/api/v1/participants/", json=payload)
     assert resp.status_code == 201, resp.text
     return resp.json()
-

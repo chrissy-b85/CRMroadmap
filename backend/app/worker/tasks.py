@@ -1,4 +1,5 @@
-"""Celery tasks for invoice inbox polling."""
+"""Celery tasks for invoice inbox polling and validation."""
+
 import asyncio
 import logging
 
@@ -20,11 +21,17 @@ def poll_invoice_inbox(self):  # type: ignore[no-untyped-def]
     try:
         return asyncio.run(_run())
     except Exception as exc:  # noqa: BLE001
-        logger.warning("poll_invoice_inbox failed (attempt %s): %s", self.request.retries + 1, exc)
+        logger.warning(
+            "poll_invoice_inbox failed (attempt %s): %s",
+            self.request.retries + 1,
+            exc,
+        )
         raise self.retry(exc=exc, countdown=60) from exc
 
 
-@celery_app.task(name="app.worker.tasks.process_single_invoice", bind=True, max_retries=3)
+@celery_app.task(
+    name="app.worker.tasks.process_single_invoice", bind=True, max_retries=3
+)
 def process_single_invoice(self, message_id: str):  # type: ignore[no-untyped-def]
     """Process a single invoice email by message ID."""
     from app.db import AsyncSessionLocal
@@ -40,7 +47,10 @@ def process_single_invoice(self, message_id: str):  # type: ignore[no-untyped-de
             return str(invoice.id)
 
     try:
-        return asyncio.run(_run())
+        invoice_id = asyncio.run(_run())
+        # Automatically trigger validation after successful ingestion
+        validate_invoice_task.delay(invoice_id)
+        return invoice_id
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "process_single_invoice failed for %s (attempt %s): %s",
@@ -49,3 +59,30 @@ def process_single_invoice(self, message_id: str):  # type: ignore[no-untyped-de
             exc,
         )
         raise self.retry(exc=exc, countdown=60) from exc
+
+
+@celery_app.task(
+    name="app.worker.tasks.validate_invoice_task", bind=True, max_retries=3
+)
+def validate_invoice_task(self, invoice_id: str):  # type: ignore[no-untyped-def]
+    """Run validation on a newly ingested invoice."""
+    from uuid import UUID
+
+    from app.db import AsyncSessionLocal
+    from app.services.invoice_validation_service import validate_invoice
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            report = await validate_invoice(db, UUID(invoice_id))
+            return {"invoice_id": invoice_id, "final_status": report.final_status}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "validate_invoice_task failed for %s (attempt %s): %s",
+            invoice_id,
+            self.request.retries + 1,
+            exc,
+        )
+        raise self.retry(exc=exc, countdown=30) from exc

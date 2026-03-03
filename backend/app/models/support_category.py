@@ -1,28 +1,34 @@
+"""SupportCategory ORM model."""
+
+import uuid
 from decimal import Decimal
 
-from sqlalchemy import Column, ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.models.base import TimestampMixin, UUIDMixin
 
 
-class SupportCategory(Base, UUIDMixin, TimestampMixin):
+class SupportCategory(Base):
     __tablename__ = "support_categories"
 
-    plan_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("plans.id"),
-        nullable=False,
-        index=True,
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    ndis_support_category = Column(String(100), nullable=False)
-    budget_allocated = Column(Numeric(12, 2), nullable=False)
-    budget_spent = Column(Numeric(12, 2), default=0)
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id"), nullable=False, index=True
+    )
+    ndis_support_category: Mapped[str] = mapped_column(String(200), nullable=False)
+    ndis_support_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    budget_allocated: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    budget_spent: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=Decimal("0.00")
+    )
 
-    plan = relationship("Plan", back_populates="support_categories")
+    plan: Mapped["Plan"] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "Plan", back_populates="support_categories"
+    )
     invoice_line_items = relationship(
         "InvoiceLineItem", back_populates="support_category"
     )
@@ -30,13 +36,16 @@ class SupportCategory(Base, UUIDMixin, TimestampMixin):
     @property
     def budget_remaining(self) -> Decimal:
         """Computed remaining budget."""
-        allocated = self.budget_allocated or Decimal("0")
-        spent = self.budget_spent or Decimal("0")
-        return Decimal(str(allocated)) - Decimal(str(spent))
-    @hybrid_property
-    def budget_remaining(self) -> Decimal:
-        """Computed remaining budget."""
-        spent = self.budget_spent or Decimal("0.00")
-        return (self.budget_allocated or Decimal("0.00")) - spent
-"""SupportCategory ORM model (defined in participant.py, re-exported here)."""
-from app.models.participant import SupportCategory  # noqa: F401
+        return self.budget_allocated - self.budget_spent
+
+    @property
+    def utilisation_percent(self) -> float:
+        """Computed utilisation as a percentage."""
+        if not self.budget_allocated:
+            return 0.0
+        return float(self.budget_spent / self.budget_allocated * 100)
+
+    @property
+    def is_overspent(self) -> bool:
+        """True when budget_spent exceeds budget_allocated."""
+        return self.budget_spent > self.budget_allocated
