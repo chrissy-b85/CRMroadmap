@@ -12,22 +12,24 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     participant_id = Column(
         UUID(as_uuid=True),
         ForeignKey("participants.id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     provider_id = Column(
         UUID(as_uuid=True),
         ForeignKey("providers.id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     plan_id = Column(
         UUID(as_uuid=True),
         ForeignKey("plans.id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
-    invoice_number = Column(String(100), nullable=False)
+    invoice_number = Column(String(100), nullable=True)
+    gcs_pdf_path = Column(String(500), nullable=True)
+    gcs_json_path = Column(String(500))
     invoice_date = Column(Date, nullable=False)
     due_date = Column(Date)
     total_amount = Column(Numeric(12, 2), nullable=False)

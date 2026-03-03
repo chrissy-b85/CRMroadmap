@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy import Column, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -18,9 +20,15 @@ class SupportCategory(Base, UUIDMixin, TimestampMixin):
     ndis_support_category = Column(String(100), nullable=False)
     budget_allocated = Column(Numeric(12, 2), nullable=False)
     budget_spent = Column(Numeric(12, 2), default=0)
-    budget_remaining = Column(Numeric(12, 2))
 
     plan = relationship("Plan", back_populates="support_categories")
     invoice_line_items = relationship(
         "InvoiceLineItem", back_populates="support_category"
     )
+
+    @property
+    def budget_remaining(self) -> Decimal:
+        """Computed remaining budget."""
+        allocated = self.budget_allocated or Decimal("0")
+        spent = self.budget_spent or Decimal("0")
+        return Decimal(str(allocated)) - Decimal(str(spent))
