@@ -1,0 +1,122 @@
+{
+  "01_011_0107_1_1": {
+    "support_item_name": "Daily Activities - Assistance With Self-Care Activities - Standard - Weekday Daytime",
+    "registration_group": "01",
+    "unit": "H",
+    "price_limit_national": 67.56
+  },
+  "01_012_0107_1_1": {
+    "support_item_name": "Daily Activities - Assistance With Self-Care Activities - Standard - Weekday Evening",
+    "registration_group": "01",
+    "unit": "H",
+    "price_limit_national": 74.34
+  },
+  "01_013_0107_1_1": {
+    "support_item_name": "Daily Activities - Assistance With Self-Care Activities - Standard - Saturday",
+    "registration_group": "01",
+    "unit": "H",
+    "price_limit_national": 94.99
+  },
+  "01_015_0107_1_1": {
+    "support_item_name": "Daily Activities - Assistance With Self-Care Activities - Standard - Sunday",
+    "registration_group": "01",
+    "unit": "H",
+    "price_limit_national": 122.42
+  },
+  "04_049_0125_6_1": {
+    "support_item_name": "Assistance With Daily Life - Assistance With Daily Life Tasks In A Group Or Shared Living Arrangement",
+    "registration_group": "04",
+    "unit": "H",
+    "price_limit_national": 67.56
+  },
+  "07_001_0106_8_3": {
+    "support_item_name": "Support Coordination - Support Coordination",
+    "registration_group": "07",
+    "unit": "H",
+    "price_limit_national": 100.14
+  },
+  "07_002_0106_8_3": {
+    "support_item_name": "Support Coordination - Specialist Support Coordination",
+    "registration_group": "07",
+    "unit": "H",
+    "price_limit_national": 190.54
+  },
+  "08_001_0100_6_3": {
+    "support_item_name": "Improved Living Arrangements - Assistance With Decision Making, Daily Planning And Budgeting",
+    "registration_group": "08",
+    "unit": "H",
+    "price_limit_national": 65.09
+  },
+  "09_001_0106_6_3": {
+    "support_item_name": "Increased Social & Community Participation - Skills Development And Training",
+    "registration_group": "09",
+    "unit": "H",
+    "price_limit_national": 65.09
+  },
+  "11_003_0131_1_3": {
+    "support_item_name": "Improved Health And Wellbeing - Dietitian",
+    "registration_group": "11",
+    "unit": "H",
+    "price_limit_national": 193.99
+  },
+  "12_021_0128_1_3": {
+    "support_item_name": "Improved Daily Living - Occupational Therapy Assessment, Recommendation, Therapy Or Training",
+    "registration_group": "12",
+    "unit": "H",
+    "price_limit_national": 193.99
+  },
+  "12_022_0128_1_3": {
+    "support_item_name": "Improved Daily Living - Speech Pathology Assessment, Recommendation, Therapy Or Training",
+    "registration_group": "12",
+    "unit": "H",
+    "price_limit_national": 193.99
+  },
+  "12_023_0128_1_3": {
+    "support_item_name": "Improved Daily Living - Psychology Assessment, Recommendation, Therapy Or Training",
+    "registration_group": "12",
+    "unit": "H",
+    "price_limit_national": 234.83
+  },
+  "13_032_0136_2_3": {
+    "support_item_name": "Improved Learning - Training For Employment",
+    "registration_group": "13",
+    "unit": "H",
+    "price_limit_national": 65.09
+  },
+  "14_033_0117_1_3": {
+    "support_item_name": "Improved Daily Living - Physiotherapy",
+    "registration_group": "14",
+    "unit": "H",
+    "price_limit_national": 193.99
+  },
+  "15_037_0117_1_3": {
+    "support_item_name": "Improved Daily Living - Exercise Physiology And Physical Wellbeing Activities",
+    "registration_group": "15",
+    "unit": "H",
+    "price_limit_national": 153.46
+  },
+  "16_007_0116_1_3": {
+    "support_item_name": "Improved Daily Living - Behaviour Support - Positive Behaviour Support Practitioner",
+    "registration_group": "16",
+    "unit": "H",
+    "price_limit_national": 214.41
+  },
+  "02_051_0108_1_3": {
+    "support_item_name": "Daily Activities - Community Nursing Care",
+    "registration_group": "02",
+    "unit": "H",
+    "price_limit_national": 214.41
+  },
+  "03_091_0118_1_3": {
+    "support_item_name": "Daily Activities - Early Intervention Supports For Early Childhood",
+    "registration_group": "03",
+    "unit": "H",
+    "price_limit_national": 193.99
+  },
+  "10_015_0102_1_3": {
+    "support_item_name": "Improved Life Choices - Financial Intermediary",
+    "registration_group": "10",
+    "unit": "H",
+    "price_limit_national": 78.32
+  }
+}

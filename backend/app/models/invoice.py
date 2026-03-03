@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -37,6 +37,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     status = Column(String(50), default="pending")
     ocr_confidence = Column(Numeric(5, 2))
     xero_invoice_id = Column(String(100))
+    validation_results = Column(JSON, nullable=True)
     email_thread_id = Column(
         UUID(as_uuid=True),
         ForeignKey("email_threads.id"),
@@ -47,6 +48,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
         ForeignKey("users.id"),
     )
     reviewed_at = Column(DateTime(timezone=True))
+    rejection_reason = Column(String(500), nullable=True)
 
     participant = relationship("Participant", back_populates="invoices")
     provider = relationship("Provider", back_populates="invoices")
