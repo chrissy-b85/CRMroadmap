@@ -32,6 +32,7 @@ async def create_tables():
     import app.models.invoice_line_item  # noqa: F401
     import app.models.participant  # noqa: F401
     import app.models.provider  # noqa: F401
+    import app.models.statement  # noqa: F401
     import app.models.support_category  # noqa: F401
     import app.models.user  # noqa: F401
     import app.models.xero_connection  # noqa: F401

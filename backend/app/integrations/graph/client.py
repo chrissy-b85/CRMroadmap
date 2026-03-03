@@ -1,4 +1,5 @@
 """Authenticated Microsoft Graph API client using app-only (client credentials) auth."""
+
 from __future__ import annotations
 
 import asyncio
@@ -87,13 +88,15 @@ class GraphClient:
     # Public async interface (run sync HTTP in executor to stay async-safe)
     # ------------------------------------------------------------------
 
-    async def _async_request(self, method: str, path: str, body: dict | None = None) -> Any:
+    async def _async_request(
+        self, method: str, path: str, body: dict | None = None
+    ) -> Any:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self._request(method, path, body))
+        return await loop.run_in_executor(
+            None, lambda: self._request(method, path, body)
+        )
 
-    async def get_inbox_messages(
-        self, folder_id: str, top: int = 50
-    ) -> list[dict]:
+    async def get_inbox_messages(self, folder_id: str, top: int = 50) -> list[dict]:
         """Return up to *top* unread messages from a mailbox folder."""
         path = (
             f"/users/{GRAPH_SHARED_MAILBOX}/mailFolders/{folder_id}/messages"
@@ -108,9 +111,7 @@ class GraphClient:
         result = await self._async_request("GET", path)
         return (result or {}).get("value", [])
 
-    async def download_attachment(
-        self, message_id: str, attachment_id: str
-    ) -> bytes:
+    async def download_attachment(self, message_id: str, attachment_id: str) -> bytes:
         """Download and return the raw bytes of an attachment."""
         path = f"/users/{GRAPH_SHARED_MAILBOX}/messages/{message_id}/attachments/{attachment_id}"
         result = await self._async_request("GET", path)
@@ -122,13 +123,19 @@ class GraphClient:
         path = f"/users/{GRAPH_SHARED_MAILBOX}/messages/{message_id}"
         await self._async_request("PATCH", path, {"isRead": True})
 
-    async def move_message_to_folder(
-        self, message_id: str, folder_id: str
-    ) -> None:
+    async def move_message_to_folder(self, message_id: str, folder_id: str) -> None:
         """Move a message to the specified destination folder."""
         path = f"/users/{GRAPH_SHARED_MAILBOX}/messages/{message_id}/move"
         await self._async_request("POST", path, {"destinationId": folder_id})
 
+    async def send_mail(
+        self,
+        to_email: str,
+        subject: str,
+        body_html: str,
+        attachment_bytes: bytes | None = None,
+        attachment_name: str | None = None,
+        attachment_content_type: str = "application/pdf",
     async def send_email(
         self,
         from_mailbox: str,
@@ -140,6 +147,43 @@ class GraphClient:
         """Send an email via Graph API and return the sent message ID.
 
         Args:
+            to_email: Recipient email address.
+            subject: Email subject line.
+            body_html: HTML body content.
+            attachment_bytes: Optional binary attachment data.
+            attachment_name: Filename for the attachment.
+            attachment_content_type: MIME type of the attachment.
+
+        Returns:
+            The Graph API message ID of the sent message.
+        """
+        import base64
+
+        message: dict = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html},
+            "toRecipients": [{"emailAddress": {"address": to_email}}],
+        }
+
+        if attachment_bytes is not None and attachment_name is not None:
+            message["attachments"] = [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": attachment_name,
+                    "contentType": attachment_content_type,
+                    "contentBytes": base64.b64encode(attachment_bytes).decode(),
+                }
+            ]
+
+        path = f"/users/{GRAPH_SHARED_MAILBOX}/sendMail"
+        await self._async_request(
+            "POST", path, {"message": message, "saveToSentItems": True}
+        )
+
+        # Graph sendMail returns 202 with no body; retrieve the last sent
+        # item for the message ID.
+        sent_path = (
+            f"/users/{GRAPH_SHARED_MAILBOX}/mailFolders/SentItems/messages"
             from_mailbox: The shared mailbox address to send from.
             to_emails: List of recipient email addresses.
             subject: Email subject line.
