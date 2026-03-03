@@ -6,12 +6,6 @@ import auth0 from "@/lib/auth0";
  * Unauthenticated requests are redirected to the Auth0 login page.
  */
 export async function middleware(request: NextRequest) {
-  const authRes = await auth0.middleware(request);
-
-  if (authRes) {
-    return authRes;
-  }
-
   const session = await auth0.getSession(request, new NextResponse());
   const { pathname } = request.nextUrl;
 
