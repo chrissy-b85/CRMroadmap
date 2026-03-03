@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
   const session = await auth0.getSession(request, new NextResponse());
   const { pathname } = request.nextUrl;
 
-  const protectedPaths = ["/dashboard", "/admin"];
+  const protectedPaths = ["/dashboard", "/admin", "/portal"];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (isProtected && !session) {
@@ -22,5 +22,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/portal/:path*"],
 };
