@@ -23,8 +23,16 @@ TestSessionLocal = async_sessionmaker(
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def create_tables():
     """Create all tables once per test session."""
-    # Import models so that Base.metadata is populated before create_all.
+    # Import all models so that Base.metadata is fully populated before create_all.
+    import app.models.audit_log  # noqa: F401
+    import app.models.document  # noqa: F401
+    import app.models.email_thread  # noqa: F401
+    import app.models.invoice  # noqa: F401
+    import app.models.invoice_line_item  # noqa: F401
     import app.models.participant  # noqa: F401
+    import app.models.provider  # noqa: F401
+    import app.models.support_category  # noqa: F401
+    import app.models.user  # noqa: F401
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
