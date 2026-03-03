@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.participant import Plan, SupportCategory
@@ -51,10 +51,20 @@ async def get_support_categories(
 
 
 async def get_support_category_by_id(
-    db: AsyncSession, category_id: uuid.UUID
+    db: AsyncSession, category_id: uuid.UUID, plan_id: uuid.UUID | None = None
 ) -> SupportCategory:
-    """Fetch a single support category; raise 404 if not found."""
-    return await _get_category_or_404(db, category_id)
+    """Fetch a single support category; raise 404 if not found or not in plan."""
+    filters = [SupportCategory.id == category_id]
+    if plan_id is not None:
+        filters.append(SupportCategory.plan_id == plan_id)
+    result = await db.execute(select(SupportCategory).where(*filters))
+    category = result.scalar_one_or_none()
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Support category not found",
+        )
+    return category
 
 
 async def create_support_category(
@@ -120,20 +130,31 @@ async def get_budget_summary(
 async def record_spend(
     db: AsyncSession, category_id: uuid.UUID, amount: Decimal
 ) -> SupportCategory:
-    """Increment budget_spent by amount; raise 404 if category not found."""
-    category = await _get_category_or_404(db, category_id)
-    category.budget_spent = category.budget_spent + amount
+    """Atomically increment budget_spent by amount; raise 404 if category not found."""
+    await _get_category_or_404(db, category_id)
+    await db.execute(
+        update(SupportCategory)
+        .where(SupportCategory.id == category_id)
+        .values(budget_spent=SupportCategory.budget_spent + amount)
+    )
     await db.commit()
-    await db.refresh(category)
-    return category
+    return await _get_category_or_404(db, category_id)
 
 
 async def reverse_spend(
     db: AsyncSession, category_id: uuid.UUID, amount: Decimal
 ) -> SupportCategory:
-    """Decrement budget_spent by amount; raise 404 if category not found."""
+    """Atomically decrement budget_spent by amount; raise 404 if not found, 409 if it would go negative."""
     category = await _get_category_or_404(db, category_id)
-    category.budget_spent = category.budget_spent - amount
+    if category.budget_spent < amount:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Reversal amount exceeds current budget_spent.",
+        )
+    await db.execute(
+        update(SupportCategory)
+        .where(SupportCategory.id == category_id)
+        .values(budget_spent=SupportCategory.budget_spent - amount)
+    )
     await db.commit()
-    await db.refresh(category)
-    return category
+    return await _get_category_or_404(db, category_id)

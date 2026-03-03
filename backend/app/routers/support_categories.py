@@ -60,7 +60,7 @@ async def get_support_category(
     current_user: dict = Depends(get_current_user),
 ):
     """Get a single support category by ID."""
-    return await svc.get_support_category_by_id(db, category_id)
+    return await svc.get_support_category_by_id(db, category_id, plan_id)
 
 
 @router.patch("/{category_id}", response_model=SupportCategoryOut)
