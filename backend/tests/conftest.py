@@ -33,6 +33,7 @@ async def create_tables():
     import app.models.provider  # noqa: F401
     import app.models.support_category  # noqa: F401
     import app.models.user  # noqa: F401
+    import app.models.xero_connection  # noqa: F401
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
