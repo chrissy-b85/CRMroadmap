@@ -44,6 +44,7 @@ class Participant(Base):
     )
     documents = relationship("Document", back_populates="participant")
     invoices = relationship("Invoice", back_populates="participant")
+    email_threads = relationship("EmailThread", back_populates="participant")
 
 
 # Re-export Plan and SupportCategory for backwards-compatible imports.

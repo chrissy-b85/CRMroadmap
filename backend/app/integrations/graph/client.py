@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import time
 from typing import Any
 
@@ -13,6 +14,8 @@ import json
 from app.integrations.graph.config import (
     GRAPH_CLIENT_ID,
     GRAPH_CLIENT_SECRET,
+    GRAPH_CORRESPONDENCE_FOLDER_ID,
+    GRAPH_FROM_MAILBOX,
     GRAPH_SHARED_MAILBOX,
     GRAPH_TENANT_ID,
 )
@@ -109,8 +112,6 @@ class GraphClient:
         self, message_id: str, attachment_id: str
     ) -> bytes:
         """Download and return the raw bytes of an attachment."""
-        import base64
-
         path = f"/users/{GRAPH_SHARED_MAILBOX}/messages/{message_id}/attachments/{attachment_id}"
         result = await self._async_request("GET", path)
         content_bytes = (result or {}).get("contentBytes", "")
@@ -127,3 +128,68 @@ class GraphClient:
         """Move a message to the specified destination folder."""
         path = f"/users/{GRAPH_SHARED_MAILBOX}/messages/{message_id}/move"
         await self._async_request("POST", path, {"destinationId": folder_id})
+
+    async def send_email(
+        self,
+        from_mailbox: str,
+        to_emails: list[str],
+        subject: str,
+        html_body: str,
+        attachments: list[dict] | None = None,
+    ) -> str:
+        """Send an email via Graph API and return the sent message ID.
+
+        Args:
+            from_mailbox: The shared mailbox address to send from.
+            to_emails: List of recipient email addresses.
+            subject: Email subject line.
+            html_body: HTML content of the email body.
+            attachments: Optional list of attachment dicts with keys
+                ``name``, ``contentType``, and ``contentBytes`` (base64).
+
+        Returns:
+            The Graph API messageId of the sent message.
+        """
+        message: dict[str, Any] = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": html_body},
+            "toRecipients": [
+                {"emailAddress": {"address": addr}} for addr in to_emails
+            ],
+        }
+        if attachments:
+            message["attachments"] = [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": att["name"],
+                    "contentType": att.get("contentType", "application/octet-stream"),
+                    "contentBytes": att["contentBytes"],
+                }
+                for att in attachments
+            ]
+        payload = {"message": message, "saveToSentItems": True}
+        path = f"/users/{from_mailbox}/sendMail"
+        await self._async_request("POST", path, payload)
+        # Graph's sendMail returns 202 with no body; reconstruct a pseudo-ID
+        # by querying the most recent sent item.
+        sent_path = (
+            f"/users/{from_mailbox}/mailFolders/SentItems/messages"
+            "?$top=1&$orderby=sentDateTime desc&$select=id"
+        )
+        result = await self._async_request("GET", sent_path)
+        items = (result or {}).get("value", [])
+        return items[0]["id"] if items else ""
+
+    async def get_correspondence_folder_messages(self, top: int = 50) -> list[dict]:
+        """Return up to *top* unread messages from the correspondence folder.
+
+        Uses ``GRAPH_CORRESPONDENCE_FOLDER_ID`` from config; falls back to
+        ``Correspondence`` as a well-known folder name if not configured.
+        """
+        folder = GRAPH_CORRESPONDENCE_FOLDER_ID or "Correspondence"
+        path = (
+            f"/users/{GRAPH_SHARED_MAILBOX}/mailFolders/{folder}/messages"
+            f"?$top={top}&$filter=isRead eq false"
+        )
+        result = await self._async_request("GET", path)
+        return (result or {}).get("value", [])

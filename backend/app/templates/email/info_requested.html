@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+
+{% block title %}Additional Information Required{% endblock %}
+
+{% block content %}
+<h2>Additional Information Required</h2>
+<p>Dear Provider,</p>
+<p>We require additional information regarding the following invoice before it can be processed.</p>
+
+<div class="alert-box">
+  <strong>Message from your coordinator:</strong><br />
+  {{ message }}
+</div>
+
+<table class="detail-table">
+  <tr><th>Invoice Number</th><td>{{ invoice.invoice_number or "—" }}</td></tr>
+  <tr><th>Invoice Date</th><td>{{ invoice.invoice_date }}</td></tr>
+  <tr><th>Total Amount</th><td>${{ "%.2f"|format(invoice.total_amount|float) }}</td></tr>
+</table>
+
+<p>Please reply to this email or contact our team with the requested information as soon as possible to avoid delays in payment.</p>
+{% endblock %}

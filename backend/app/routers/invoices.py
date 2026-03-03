@@ -269,6 +269,33 @@ async def approve_invoice(
 
     background_tasks.add_task(_try_xero_sync)
 
+    # Send approval notification as a best-effort background task
+    async def _try_approval_notification():
+        try:
+            from app.models.participant import Participant
+            from app.services.email_notification_service import EmailNotificationService
+
+            if invoice.participant_id:
+                part_result = await db.execute(
+                    select(Participant).where(Participant.id == invoice.participant_id)
+                )
+                participant = part_result.scalar_one_or_none()
+                if participant and participant.email:
+                    svc = EmailNotificationService()
+                    await svc.send_invoice_approved_notification(
+                        recipient_email=participant.email,
+                        participant_name=f"{participant.first_name} {participant.last_name}",
+                        invoice=invoice,
+                    )
+        except Exception:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Approval notification skipped for invoice %s", invoice_id, exc_info=True
+            )
+
+    background_tasks.add_task(_try_approval_notification)
+
     return invoice
 
 
@@ -276,6 +303,7 @@ async def approve_invoice(
 async def reject_invoice(
     invoice_id: UUID,
     reason: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("Coordinator")),
 ):
@@ -314,20 +342,70 @@ async def reject_invoice(
         .options(selectinload(Invoice.line_items))
         .where(Invoice.id == invoice_id)
     )
-    return reload_result.scalar_one()
+    reloaded = reload_result.scalar_one()
+
+    # Send rejection notification as a best-effort background task
+    async def _try_rejection_notification():
+        try:
+            from app.models.participant import Participant
+            from app.models.provider import Provider as _Provider
+            from app.services.email_notification_service import EmailNotificationService
+
+            svc = EmailNotificationService()
+            participant_name = ""
+            recipient_email = ""
+            provider_email = ""
+
+            if reloaded.participant_id:
+                part_result = await db.execute(
+                    select(Participant).where(Participant.id == reloaded.participant_id)
+                )
+                participant = part_result.scalar_one_or_none()
+                if participant:
+                    participant_name = f"{participant.first_name} {participant.last_name}"
+                    recipient_email = participant.email or ""
+
+            if reloaded.provider_id:
+                prov_result = await db.execute(
+                    select(_Provider).where(_Provider.id == reloaded.provider_id)
+                )
+                provider = prov_result.scalar_one_or_none()
+                if provider:
+                    provider_email = provider.email or ""
+
+            if recipient_email or provider_email:
+                await svc.send_invoice_rejected_notification(
+                    recipient_email=recipient_email,
+                    provider_email=provider_email,
+                    invoice=reloaded,
+                    reason=reason,
+                    participant_name=participant_name,
+                )
+        except Exception:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Rejection notification skipped for invoice %s", invoice_id, exc_info=True
+            )
+
+    background_tasks.add_task(_try_rejection_notification)
+
+    return reloaded
 
 
 @router.post("/{invoice_id}/request-info", response_model=InvoiceOut)
 async def request_info(
     invoice_id: UUID,
     message: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("Coordinator")),
 ):
     """Request more information from provider.
 
     - Sets status to INFO_REQUESTED
-    - Writes audit log (Outlook notification handled in Sprint 9)
+    - Writes audit log
+    - Sends notification to provider
     """
     result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
     invoice = result.scalar_one_or_none()
@@ -354,7 +432,38 @@ async def request_info(
         .options(selectinload(Invoice.line_items))
         .where(Invoice.id == invoice_id)
     )
-    return reload_result.scalar_one()
+    reloaded = reload_result.scalar_one()
+
+    # Send info-requested notification as a best-effort background task
+    async def _try_info_requested_notification():
+        try:
+            from app.models.provider import Provider as _Provider
+            from app.services.email_notification_service import EmailNotificationService
+
+            if reloaded.provider_id:
+                prov_result = await db.execute(
+                    select(_Provider).where(_Provider.id == reloaded.provider_id)
+                )
+                provider = prov_result.scalar_one_or_none()
+                if provider and provider.email:
+                    svc = EmailNotificationService()
+                    await svc.send_info_requested_notification(
+                        provider_email=provider.email,
+                        invoice=reloaded,
+                        message=message,
+                    )
+        except Exception:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Info-requested notification skipped for invoice %s",
+                invoice_id,
+                exc_info=True,
+            )
+
+    background_tasks.add_task(_try_info_requested_notification)
+
+    return reloaded
 
 
 @router.post("/{invoice_id}/participant-approve", response_model=InvoiceOut)

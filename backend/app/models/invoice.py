@@ -56,7 +56,7 @@ class Invoice(Base, UUIDMixin, TimestampMixin):
     participant = relationship("Participant", back_populates="invoices")
     provider = relationship("Provider", back_populates="invoices")
     plan = relationship("Plan", back_populates="invoices")
-    email_thread = relationship("EmailThread", back_populates="invoices")
+    email_thread = relationship("EmailThread", back_populates="invoices", foreign_keys="[EmailThread.invoice_id]")
     reviewer = relationship(
         "User", back_populates="reviewed_invoices", foreign_keys=[reviewed_by]
     )

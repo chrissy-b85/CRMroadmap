@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}NDIS CRM Notification{% endblock %}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a56a0; padding: 24px 32px; }
+    .header img { height: 40px; }
+    .header h1 { color: #ffffff; margin: 8px 0 0; font-size: 20px; }
+    .body { padding: 32px; color: #333333; line-height: 1.6; }
+    .body h2 { color: #1a56a0; margin-top: 0; }
+    .alert-box { border-left: 4px solid #e8a000; background: #fff8e1; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+    .success-box { border-left: 4px solid #2e7d32; background: #e8f5e9; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+    .error-box { border-left: 4px solid #c62828; background: #ffebee; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+    .detail-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .detail-table th { text-align: left; color: #555; font-size: 13px; padding: 6px 8px; border-bottom: 1px solid #e0e0e0; }
+    .detail-table td { padding: 8px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .footer { background: #f9f9f9; border-top: 1px solid #e0e0e0; padding: 16px 32px; text-align: center; font-size: 12px; color: #888; }
+    .footer a { color: #1a56a0; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>NDIS Plan Management</h1>
+    </div>
+    <div class="body">
+      {% block content %}{% endblock %}
+    </div>
+    <div class="footer">
+      <p>This is an automated message from the NDIS CRM system. Please do not reply to this email.</p>
+      <p>If you have questions, contact your support coordinator.</p>
+    </div>
+  </div>
+</body>
+</html>
