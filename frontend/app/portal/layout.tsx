@@ -1,23 +1,24 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import PWAInstallPrompt from '@/components/portal/PWAInstallPrompt'
+import type { Metadata } from "next";
+import Link from "next/link";
+import PWAInstallPrompt from "@/components/portal/PWAInstallPrompt";
 
 export const metadata: Metadata = {
-  title: 'My NDIS Portal',
-  description: 'View your NDIS budget and invoices',
-}
+  title: "My NDIS Portal",
+  description: "View your NDIS budget and invoices",
+};
 
 const navItems = [
-  { href: '/portal', label: 'Home', icon: '🏠' },
-  { href: '/portal/budget', label: 'Budget', icon: '💰' },
-  { href: '/portal/invoices', label: 'Invoices', icon: '📄' },
-  { href: '/portal/profile', label: 'Profile', icon: '👤' },
-]
+  { href: "/portal", label: "Home", icon: "🏠" },
+  { href: "/portal/budget", label: "Budget", icon: "💰" },
+  { href: "/portal/invoices", label: "Invoices", icon: "📄" },
+  { href: "/portal/statements", label: "Statements", icon: "📋" },
+  { href: "/portal/profile", label: "Profile", icon: "👤" },
+];
 
 export default function PortalLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -60,5 +61,5 @@ export default function PortalLayout({
 
       <PWAInstallPrompt />
     </div>
-  )
+  );
 }

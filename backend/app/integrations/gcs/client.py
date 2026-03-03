@@ -1,4 +1,5 @@
 """GCS client for invoice PDF and JSON storage."""
+
 from __future__ import annotations
 
 import asyncio
@@ -58,9 +59,7 @@ class GCSClient:
         )
         return f"gs://{GCS_BUCKET_INVOICES}/{blob_name}"
 
-    async def get_signed_url(
-        self, gcs_path: str, expiry_minutes: int = 60
-    ) -> str:
+    async def get_signed_url(self, gcs_path: str, expiry_minutes: int = 60) -> str:
         """Generate a signed URL for temporary access to a GCS object.
 
         ``gcs_path`` should be a ``gs://bucket/blob`` URI.
@@ -89,6 +88,19 @@ class GCSClient:
             lambda: blob.generate_signed_url(expiration=expiry, method="GET"),
         )
         return url
+
+    async def upload_bytes(
+        self,
+        data: bytes,
+        blob_path: str,
+        content_type: str = "application/pdf",
+    ) -> str:
+        """Upload raw bytes to an explicit blob path and return its ``gs://`` URI."""
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None, lambda: self._upload_blob(blob_path, data, content_type)
+        )
+        return f"gs://{GCS_BUCKET_INVOICES}/{blob_path}"
 
     # ------------------------------------------------------------------
     # Internal sync helper

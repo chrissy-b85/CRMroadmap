@@ -127,3 +127,37 @@ def reconcile_xero_payments(self):  # type: ignore[no-untyped-def]
             exc,
         )
         raise self.retry(exc=exc, countdown=300) from exc
+
+
+@celery_app.task(name="app.worker.tasks.generate_monthly_statements")
+def generate_monthly_statements() -> dict:  # type: ignore[return]
+    """Run on 1st of each month at 02:00 AEST.
+
+    Generate statements for all active participants for the previous month,
+    then email each statement via Outlook (Graph API).
+    """
+    from datetime import date
+
+    from app.db import AsyncSessionLocal
+    from app.services.statement_service import generate_all_monthly_statements
+
+    # Generate for the previous month
+    today = date.today()
+    if today.month == 1:
+        year, month = today.year - 1, 12
+    else:
+        year, month = today.year, today.month - 1
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            return await generate_all_monthly_statements(db, year, month)
+
+    try:
+        result = asyncio.run(_run())
+        logger.info(
+            "generate_monthly_statements completed for %d-%02d: %s", year, month, result
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("generate_monthly_statements failed: %s", exc)
+        raise

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NDIS Monthly Statement — {{ statement_period }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm 15mm;
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages) " | Generated: {{ generated_date }} | NDIS CRM";
+        font-size: 9pt;
+        color: #6b7280;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #1f2937; }
+
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: flex-start;
+               border-bottom: 3px solid #1d4ed8; padding-bottom: 10mm; margin-bottom: 8mm; }
+    .logo { font-size: 22pt; font-weight: 700; color: #1d4ed8; }
+    .logo-sub { font-size: 9pt; color: #6b7280; margin-top: 2pt; }
+    .header-info { text-align: right; }
+    .header-info h1 { font-size: 14pt; font-weight: 700; color: #1d4ed8; }
+    .header-info p { font-size: 9pt; color: #374151; line-height: 1.6; }
+
+    /* Participant info box */
+    .participant-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px;
+                       padding: 5mm; margin-bottom: 6mm; display: flex; gap: 10mm; }
+    .participant-box .field { flex: 1; }
+    .participant-box .field-label { font-size: 8pt; color: #6b7280; text-transform: uppercase;
+                                    letter-spacing: 0.05em; }
+    .participant-box .field-value { font-size: 11pt; font-weight: 600; color: #1e3a8a; }
+
+    /* Section headers */
+    h2 { font-size: 11pt; font-weight: 700; color: #1d4ed8; border-bottom: 1px solid #bfdbfe;
+         padding-bottom: 2mm; margin-bottom: 4mm; margin-top: 6mm; }
+
+    /* Summary grid */
+    .summary-grid { display: flex; gap: 5mm; margin-bottom: 6mm; }
+    .summary-card { flex: 1; border: 1px solid #e5e7eb; border-radius: 4px; padding: 4mm;
+                    text-align: center; }
+    .summary-card .label { font-size: 8pt; color: #6b7280; }
+    .summary-card .value { font-size: 13pt; font-weight: 700; color: #1e3a8a; margin-top: 1mm; }
+    .summary-card.highlight { background: #eff6ff; border-color: #93c5fd; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    thead th { background: #1d4ed8; color: #ffffff; padding: 3mm 4mm; text-align: left;
+               font-weight: 600; font-size: 8.5pt; }
+    thead th.right { text-align: right; }
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    tbody td { padding: 2.5mm 4mm; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    tbody td.right { text-align: right; }
+    tbody td.center { text-align: center; }
+    tfoot td { padding: 2.5mm 4mm; font-weight: 700; border-top: 2px solid #1d4ed8; }
+    tfoot td.right { text-align: right; }
+
+    /* Budget utilisation bar */
+    .util-bar-bg { background: #e5e7eb; border-radius: 3px; height: 6px; width: 80px;
+                   display: inline-block; vertical-align: middle; }
+    .util-bar-fill { height: 6px; border-radius: 3px; }
+    .bar-ok { background: #22c55e; }
+    .bar-warn { background: #f59e0b; }
+    .bar-crit { background: #ef4444; }
+
+    /* Status badges */
+    .badge { display: inline-block; padding: 1pt 5pt; border-radius: 3px; font-size: 8pt;
+             font-weight: 600; }
+    .badge-approved { background: #dcfce7; color: #15803d; }
+    .badge-pending  { background: #fef9c3; color: #854d0e; }
+    .badge-rejected { background: #fee2e2; color: #b91c1c; }
+
+    /* Footer note */
+    .footer-note { margin-top: 8mm; padding: 4mm; background: #f3f4f6; border-radius: 4px;
+                   font-size: 8pt; color: #6b7280; }
+
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <div>
+      <div class="logo">NDIS CRM</div>
+      <div class="logo-sub">National Disability Insurance Scheme<br>Plan Management System</div>
+    </div>
+    <div class="header-info">
+      <h1>Monthly Statement</h1>
+      <p>
+        Period: <strong>{{ statement_period }}</strong><br>
+        Generated: {{ generated_date }}<br>
+        Reference: STMT-{{ year }}-{{ "%02d"|format(month) }}-{{ participant.ndis_number }}
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== PARTICIPANT DETAILS ===== -->
+  <div class="participant-box">
+    <div class="field">
+      <div class="field-label">Participant Name</div>
+      <div class="field-value">{{ participant.first_name }} {{ participant.last_name }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">NDIS Number</div>
+      <div class="field-value">{{ participant.ndis_number }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Statement Period</div>
+      <div class="field-value">{{ statement_period }}</div>
+    </div>
+    {% if plan %}
+    <div class="field">
+      <div class="field-label">Active Plan</div>
+      <div class="field-value">{{ plan.plan_start_date }} – {{ plan.plan_end_date }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ===== SUMMARY ===== -->
+  <h2>Statement Summary</h2>
+  <div class="summary-grid">
+    <div class="summary-card highlight">
+      <div class="label">Total Invoices</div>
+      <div class="value">{{ invoice_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total (incl. GST)</div>
+      <div class="value">${{ "%.2f"|format(total_amount) }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total GST</div>
+      <div class="value">${{ "%.2f"|format(total_gst) }}</div>
+    </div>
+    <div class="summary-card highlight">
+      <div class="label">Net Amount</div>
+      <div class="value">${{ "%.2f"|format(total_amount - total_gst) }}</div>
+    </div>
+  </div>
+
+  <!-- ===== BUDGET UTILISATION ===== -->
+  {% if categories %}
+  <h2>Budget Utilisation by Support Category</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Support Category</th>
+        <th class="right">Allocated</th>
+        <th class="right">Spent</th>
+        <th class="right">Remaining</th>
+        <th class="right">Utilisation</th>
+        <th>Visual</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories %}
+      {% set pct = cat.utilisation_percent | float %}
+      {% set bar_class = "bar-crit" if pct >= 90 else ("bar-warn" if pct >= 75 else "bar-ok") %}
+      <tr>
+        <td>{{ cat.ndis_support_category }}</td>
+        <td class="right">${{ "%.2f"|format(cat.budget_allocated) }}</td>
+        <td class="right">${{ "%.2f"|format(cat.budget_spent) }}</td>
+        <td class="right">${{ "%.2f"|format(cat.budget_remaining) }}</td>
+        <td class="right">{{ "%.1f"|format(pct) }}%</td>
+        <td>
+          <div class="util-bar-bg">
+            <div class="util-bar-fill {{ bar_class }}"
+                 style="width: {{ [pct, 100]|min }}%;"></div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <!-- ===== INVOICE LINE ITEMS ===== -->
+  <h2 {% if categories %}class="page-break"{% endif %}>Invoice Details</h2>
+  {% if invoices %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Invoice #</th>
+        <th>Provider</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th class="right">Amount</th>
+        <th class="right">GST</th>
+        <th class="center">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td>{{ inv.invoice_date }}</td>
+        <td>{{ inv.invoice_number or inv.id[:8] }}</td>
+        <td>{{ inv.provider_name or "—" }}</td>
+        <td>
+          {% if inv.line_items %}
+            {{ inv.line_items[0].description or "—" }}
+            {% if inv.line_items|length > 1 %}
+              <br><em style="color:#6b7280;font-size:8pt;">+{{ inv.line_items|length - 1 }} more item(s)</em>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ inv.support_category or "—" }}</td>
+        <td class="right">${{ "%.2f"|format(inv.total_amount) }}</td>
+        <td class="right">${{ "%.2f"|format(inv.gst_amount) }}</td>
+        <td class="center">
+          <span class="badge badge-{{ inv.status | lower }}">{{ inv.status }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5"><strong>TOTAL</strong></td>
+        <td class="right">${{ "%.2f"|format(total_amount) }}</td>
+        <td class="right">${{ "%.2f"|format(total_gst) }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}
+  <p style="color:#6b7280;font-style:italic;padding:4mm 0;">No invoices recorded for this period.</p>
+  {% endif %}
+
+  <!-- ===== FOOTER NOTE ===== -->
+  <div class="footer-note">
+    <strong>Important:</strong> This statement is generated automatically from your NDIS plan
+    management records. Please review all line items and contact your plan manager if you have
+    any questions. This document is produced by NDIS CRM &mdash; {{ org_contact }}.
+  </div>
+
+</body>
+</html>
