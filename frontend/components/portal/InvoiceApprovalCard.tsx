@@ -54,7 +54,7 @@ export default function InvoiceApprovalCard({
   }
 
   const awaitingApproval =
-    invoice.status === 'PENDING_APPROVAL' || invoice.status === 'pending_approval'
+    invoice.status.toLowerCase() === 'pending_approval'
 
   return (
     <>

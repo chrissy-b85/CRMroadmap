@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+
+{% block title %}Invoice Received – Action Required{% endblock %}
+
+{% block content %}
+<h2>Invoice Received – Awaiting Approval</h2>
+<p>Dear {{ participant_name }},</p>
+<p>An invoice has been received and processed via OCR. It is now awaiting your review and approval.</p>
+
+<div class="alert-box">
+  <strong>Action required:</strong> Please review the invoice details below and approve or query it in the portal.
+</div>
+
+<table class="detail-table">
+  <tr><th>Invoice Number</th><td>{{ invoice.invoice_number or "—" }}</td></tr>
+  <tr><th>Invoice Date</th><td>{{ invoice.invoice_date }}</td></tr>
+  <tr><th>Total Amount</th><td>${{ "%.2f"|format(invoice.total_amount|float) }}</td></tr>
+  <tr><th>Status</th><td>{{ invoice.status }}</td></tr>
+</table>
+
+<p>Please log in to the NDIS CRM portal to review this invoice.</p>
+{% endblock %}

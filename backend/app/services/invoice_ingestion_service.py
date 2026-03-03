@@ -151,12 +151,14 @@ async def process_invoice_email(db: AsyncSession, message: dict) -> Invoice:
 
     # 7. Create EmailThread record
     thread = EmailThread(
-        outlook_thread_id=message.get("conversationId") or message_id,
-        outlook_message_id=message_id,
+        graph_thread_id=message.get("conversationId") or message_id,
+        graph_message_id=message_id,
         subject=subject,
         sender_email=sender,
+        sender_name=(message.get("from", {}) or {}).get("emailAddress", {}).get("name"),
         received_at=received_at,
-        processed=True,
+        direction="inbound",
+        has_attachments=bool(pdf_attachments),
         provider_id=provider.id if provider else None,
     )
     db.add(thread)

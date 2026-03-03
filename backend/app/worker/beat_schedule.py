@@ -1,5 +1,6 @@
 """Celery beat schedule — poll invoice inbox every 5 minutes."""
 
+"""Celery beat schedule — scheduled tasks for the NDIS CRM."""
 from celery.schedules import crontab
 
 from app.worker.celery_app import celery_app
@@ -20,5 +21,16 @@ celery_app.conf.beat_schedule = {
     "generate-monthly-statements": {
         "task": "app.worker.tasks.generate_monthly_statements",
         "schedule": crontab(day_of_month=1, hour=2, minute=0),
+    "poll-correspondence-inbox-every-15-minutes": {
+        "task": "app.worker.tasks.poll_correspondence_inbox",
+        "schedule": crontab(minute="*/15"),
+    },
+    "send-budget-alert-emails-daily": {
+        "task": "app.worker.tasks.send_budget_alert_emails",
+        "schedule": crontab(hour="8", minute="0"),
+    },
+    "send-plan-expiry-warnings-daily": {
+        "task": "app.worker.tasks.send_plan_expiry_warnings",
+        "schedule": crontab(hour="8", minute="15"),
     },
 }

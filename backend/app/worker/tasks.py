@@ -106,9 +106,93 @@ def validate_invoice_task(self, invoice_id: str):  # type: ignore[no-untyped-def
         raise self.retry(exc=exc, countdown=30) from exc
 
 
-@celery_app.task(
-    name="app.worker.tasks.reconcile_xero_payments", bind=True, max_retries=3
-)
+@celery_app.task(name="app.worker.tasks.poll_correspondence_inbox")
+def poll_correspondence_inbox() -> dict:  # type: ignore[return]
+    """Every 15 minutes: check mailbox for new inbound correspondence."""
+    from app.db import AsyncSessionLocal
+    from app.services.correspondence_service import (
+        poll_correspondence_inbox as _poll,
+    )
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            return await _poll(db)
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("poll_correspondence_inbox failed: %s", exc)
+        raise
+
+
+@celery_app.task(name="app.worker.tasks.send_budget_alert_emails")
+def send_budget_alert_emails() -> dict:  # type: ignore[return]
+    """Daily: send low budget alert emails for CRITICAL/WARNING plans."""
+    from app.db import AsyncSessionLocal
+    from app.services.budget_tracking_service import get_all_active_plan_alerts
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            alerts = await get_all_active_plan_alerts(db)
+            return {"alert_count": len(alerts)}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("send_budget_alert_emails failed: %s", exc)
+        raise
+
+
+@celery_app.task(name="app.worker.tasks.send_plan_expiry_warnings")
+def send_plan_expiry_warnings() -> dict:  # type: ignore[return]
+    """Daily: send plan expiry warnings for plans expiring in ≤30 days."""
+    from datetime import date, timedelta
+
+    from app.db import AsyncSessionLocal
+    from app.models.participant import Participant
+    from app.models.plan import Plan
+    from app.services.email_notification_service import EmailNotificationService
+
+    async def _run():
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as db:
+            cutoff = date.today() + timedelta(days=30)
+            result = await db.execute(
+                select(Plan).where(
+                    Plan.is_active.is_(True),
+                    Plan.plan_end_date <= cutoff,
+                )
+            )
+            plans = result.scalars().all()
+            svc = EmailNotificationService()
+            sent = 0
+            for plan in plans:
+                part_result = await db.execute(
+                    select(Participant).where(Participant.id == plan.participant_id)
+                )
+                participant = part_result.scalar_one_or_none()
+                if participant and participant.email:
+                    days_remaining = (plan.plan_end_date - date.today()).days
+                    try:
+                        await svc.send_plan_expiry_warning(
+                            participant_email=participant.email,
+                            participant_name=f"{participant.first_name} {participant.last_name}",
+                            plan=plan,
+                            days_remaining=days_remaining,
+                        )
+                        sent += 1
+                    except Exception:  # noqa: BLE001
+                        logger.warning(
+                            "Failed to send expiry warning for plan %s", plan.id, exc_info=True
+                        )
+            return {"sent": sent, "total_expiring": len(plans)}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("send_plan_expiry_warnings failed: %s", exc)
+        raise
 def reconcile_xero_payments(self):  # type: ignore[no-untyped-def]
     """Daily task: poll Xero for payment status updates on APPROVED invoices."""
     from app.db import AsyncSessionLocal

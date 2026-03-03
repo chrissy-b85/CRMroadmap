@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+
+{% block title %}Invoice Rejected{% endblock %}
+
+{% block content %}
+<h2>Invoice Rejected</h2>
+<p>Dear Provider,</p>
+<p>Unfortunately, the following invoice has been rejected.</p>
+
+<div class="error-box">
+  <strong>Rejection reason:</strong> {{ reason }}
+</div>
+
+<table class="detail-table">
+  <tr><th>Invoice Number</th><td>{{ invoice.invoice_number or "—" }}</td></tr>
+  <tr><th>Invoice Date</th><td>{{ invoice.invoice_date }}</td></tr>
+  <tr><th>Total Amount</th><td>${{ "%.2f"|format(invoice.total_amount|float) }}</td></tr>
+  <tr><th>Participant</th><td>{{ participant_name }}</td></tr>
+</table>
+
+<p>Please review the reason above and resubmit a corrected invoice if applicable. If you have questions, please contact our team.</p>
+{% endblock %}

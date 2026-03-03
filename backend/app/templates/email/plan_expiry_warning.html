@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+
+{% block title %}NDIS Plan Expiry Warning{% endblock %}
+
+{% block content %}
+<h2>Your NDIS Plan Is Expiring Soon</h2>
+<p>Dear {{ participant_name }},</p>
+<p>This is a reminder that your NDIS plan is due to expire in <strong>{{ days_remaining }} days</strong>.</p>
+
+<div class="alert-box">
+  <strong>Action recommended:</strong> Contact your Local Area Coordinator or planner to begin your plan review process before the expiry date.
+</div>
+
+<table class="detail-table">
+  <tr><th>Plan Start Date</th><td>{{ plan.plan_start_date }}</td></tr>
+  <tr><th>Plan End Date</th><td>{{ plan.plan_end_date }}</td></tr>
+  <tr><th>Total Funding</th><td>${{ "%.2f"|format(plan.total_funding|float) }}</td></tr>
+  <tr><th>Days Remaining</th><td>{{ days_remaining }}</td></tr>
+</table>
+
+<p>If you have already initiated a plan review, please disregard this notice.</p>
+{% endblock %}

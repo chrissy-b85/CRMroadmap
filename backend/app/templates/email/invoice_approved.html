@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+
+{% block title %}Invoice Approved{% endblock %}
+
+{% block content %}
+<h2>Invoice Approved</h2>
+<p>Dear {{ participant_name }},</p>
+<p>The following invoice has been approved by your support coordinator.</p>
+
+<div class="success-box">
+  <strong>Approved:</strong> This invoice has been processed and will be submitted for payment.
+</div>
+
+<table class="detail-table">
+  <tr><th>Invoice Number</th><td>{{ invoice.invoice_number or "—" }}</td></tr>
+  <tr><th>Invoice Date</th><td>{{ invoice.invoice_date }}</td></tr>
+  <tr><th>Total Amount</th><td>${{ "%.2f"|format(invoice.total_amount|float) }}</td></tr>
+  <tr><th>Status</th><td>APPROVED</td></tr>
+</table>
+
+<p>If you have any questions about this invoice, please contact your support coordinator.</p>
+{% endblock %}
