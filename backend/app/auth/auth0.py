@@ -5,16 +5,10 @@ import os
 from typing import Any
 
 import httpx
-from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "")
-
-if not AUTH0_DOMAIN:
-    raise RuntimeError("AUTH0_DOMAIN environment variable is not set")
-if not AUTH0_AUDIENCE:
-    raise RuntimeError("AUTH0_AUDIENCE environment variable is not set")
 
 _jwks_cache: dict[str, Any] | None = None
 _jwks_lock = asyncio.Lock()
@@ -39,6 +33,8 @@ async def verify_token(token: str) -> dict[str, Any]:
     Raises:
         HTTPException 401: if the token is invalid, expired, or cannot be verified.
     """
+    from jose import JWTError, jwt  # noqa: PLC0415 – lazy import, requires python-jose
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
