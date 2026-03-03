@@ -41,6 +41,9 @@ class Participant(Base):
     invoices = relationship("Invoice", back_populates="participant")
 
 
+# Re-export Plan and SupportCategory for backwards-compatible imports
+from app.models.plan import Plan  # noqa: E402, F401  # isort: skip
+from app.models.support_category import SupportCategory  # noqa: E402, F401  # isort: skip
 class Plan(Base):
     __tablename__ = "plans"
 

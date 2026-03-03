@@ -9,12 +9,14 @@ class Provider(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "providers"
 
     abn = Column(String(11), unique=True, nullable=False)
-    name = Column(String(255), nullable=False)
+    business_name = Column(String(255), nullable=False)
+    registration_group = Column(String(255))
     email = Column(String(255))
     phone = Column(String(20))
     address = Column(Text)
     bank_bsb = Column(String(6))
     bank_account = Column(String(20))
+    bank_account_name = Column(String(255))
     xero_contact_id = Column(String(100))
     is_active = Column(Boolean, default=True)
 

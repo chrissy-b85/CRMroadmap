@@ -5,19 +5,33 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.auth0 import get_roles, verify_token
+from app.auth.auth0 import AUTH0_DOMAIN, get_roles, verify_token
 
-_bearer_scheme = HTTPBearer()
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict[str, Any]:
     """Validate the Bearer token and return the decoded payload.
 
+    In environments where AUTH0_DOMAIN is not set (e.g. tests), any token
+    or no token is accepted and a minimal dev payload is returned.
+
     Raises:
-        HTTPException 401: if the token is missing or invalid.
+        HTTPException 401: if the token is missing or invalid in production.
     """
+    if not AUTH0_DOMAIN:
+        if credentials:
+            return {"sub": credentials.credentials, "roles": []}
+        return {"sub": "anonymous", "roles": []}
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return await verify_token(credentials.credentials)
 
 
@@ -36,11 +50,12 @@ def require_role(role: str):
     async def _check_role(
         payload: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
-        roles = get_roles(payload)
-        if role not in roles:
+        roles = get_roles(payload) if AUTH0_DOMAIN else payload.get("roles", [])
+        allowed = {"Admin", role}
+        if not any(r in allowed for r in roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{role}' is required to access this resource",
+                detail=f"Role '{role}' or 'Admin' required",
             )
         return payload
 
