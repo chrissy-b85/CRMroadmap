@@ -5,10 +5,11 @@ from typing import Sequence
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.participant import Participant, Plan
 from app.schemas.participant import ParticipantIn, ParticipantUpdate
-from app.schemas.plan import PlanIn
+from app.schemas.plan import PlanBase
 
 
 async def get_participants(
@@ -101,13 +102,15 @@ async def get_participant_plans(
     """Return all plans linked to a participant (404 if participant missing)."""
     await get_participant_by_id(db, participant_id)
     result = await db.execute(
-        select(Plan).where(Plan.participant_id == participant_id)
+        select(Plan)
+        .options(selectinload(Plan.support_categories))
+        .where(Plan.participant_id == participant_id)
     )
     return result.scalars().all()
 
 
 async def create_participant_plan(
-    db: AsyncSession, participant_id: uuid.UUID, data: PlanIn
+    db: AsyncSession, participant_id: uuid.UUID, data: PlanBase
 ) -> Plan:
     """Create a new NDIS plan linked to a participant."""
     await get_participant_by_id(db, participant_id)
@@ -115,4 +118,9 @@ async def create_participant_plan(
     db.add(plan)
     await db.commit()
     await db.refresh(plan)
-    return plan
+    result = await db.execute(
+        select(Plan)
+        .options(selectinload(Plan.support_categories))
+        .where(Plan.id == plan.id)
+    )
+    return result.scalar_one()
