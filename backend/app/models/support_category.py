@@ -27,6 +27,12 @@ class SupportCategory(Base, UUIDMixin, TimestampMixin):
         "InvoiceLineItem", back_populates="support_category"
     )
 
+    @property
+    def budget_remaining(self) -> Decimal:
+        """Computed remaining budget."""
+        allocated = self.budget_allocated or Decimal("0")
+        spent = self.budget_spent or Decimal("0")
+        return Decimal(str(allocated)) - Decimal(str(spent))
     @hybrid_property
     def budget_remaining(self) -> Decimal:
         """Computed remaining budget."""

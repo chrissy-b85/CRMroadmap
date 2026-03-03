@@ -41,6 +41,10 @@ class Participant(Base):
     invoices = relationship("Invoice", back_populates="participant")
 
 
+# Re-export for backwards compatibility with services that import Plan/SupportCategory from here.
+from app.models.plan import Plan  # noqa: E402, F401
+from app.models.support_category import SupportCategory  # noqa: E402, F401
+
 # Re-export Plan and SupportCategory for backwards-compatible imports
 from app.models.plan import Plan  # noqa: E402, F401  # isort: skip
 from app.models.support_category import SupportCategory  # noqa: E402, F401  # isort: skip
