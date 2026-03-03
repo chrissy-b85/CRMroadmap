@@ -1,0 +1,26 @@
+{% extends "_base.html" %}
+
+{% block title %}Low Budget Alert – {{ category_name }}{% endblock %}
+
+{% block content %}
+<h2>Low Budget Alert</h2>
+<p>Dear {{ participant_name }},</p>
+<p>Your support budget for <strong>{{ category_name }}</strong> has reached <strong>{{ "%.0f"|format(utilisation_percent) }}%</strong> utilisation.</p>
+
+{% if utilisation_percent >= 90 %}
+<div class="error-box">
+  <strong>Critical:</strong> Your budget is almost exhausted. Please review your spending with your support coordinator urgently.
+</div>
+{% else %}
+<div class="alert-box">
+  <strong>Warning:</strong> Your budget is approaching its limit. Consider reviewing your upcoming support needs with your coordinator.
+</div>
+{% endif %}
+
+<table class="detail-table">
+  <tr><th>Support Category</th><td>{{ category_name }}</td></tr>
+  <tr><th>Utilisation</th><td>{{ "%.1f"|format(utilisation_percent) }}%</td></tr>
+</table>
+
+<p>Log in to the NDIS CRM portal to review your full budget breakdown.</p>
+{% endblock %}
