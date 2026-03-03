@@ -22,7 +22,7 @@ export default function InvoiceDetailSheet({
   const [error, setError] = useState<string | null>(null)
 
   const awaitingApproval =
-    invoice.status === 'PENDING_APPROVAL' || invoice.status === 'pending_approval'
+    invoice.status.toLowerCase() === 'pending_approval'
 
   async function handleApprove() {
     if (!confirming) {
