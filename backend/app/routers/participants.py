@@ -12,7 +12,7 @@ from app.schemas.participant import (
     ParticipantOut,
     ParticipantUpdate,
 )
-from app.schemas.plan import PlanIn, PlanOut
+from app.schemas.plan import PlanBase, PlanOut
 from app.services import participant_service as svc
 
 router = APIRouter(prefix="/participants", tags=["Participants"])
@@ -91,7 +91,7 @@ async def list_plans(
 )
 async def create_plan(
     participant_id: UUID,
-    data: PlanIn,
+    data: PlanBase,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("Coordinator")),
 ):

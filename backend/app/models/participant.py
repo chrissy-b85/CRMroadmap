@@ -68,3 +68,29 @@ class Plan(Base):
     participant: Mapped["Participant"] = relationship(
         "Participant", back_populates="plans"
     )
+    support_categories: Mapped[list["SupportCategory"]] = relationship(
+        "SupportCategory", back_populates="plan", cascade="all, delete-orphan"
+    )
+
+
+class SupportCategory(Base):
+    __tablename__ = "support_categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id"), nullable=False
+    )
+    ndis_support_category: Mapped[str] = mapped_column(String(200), nullable=False)
+    budget_allocated: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    budget_spent: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=Decimal("0.00")
+    )
+
+    plan: Mapped["Plan"] = relationship("Plan", back_populates="support_categories")
+
+    @property
+    def budget_remaining(self) -> Decimal:
+        """Computed remaining budget."""
+        return self.budget_allocated - self.budget_spent
