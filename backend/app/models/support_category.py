@@ -32,3 +32,5 @@ class SupportCategory(Base, UUIDMixin, TimestampMixin):
         """Computed remaining budget."""
         spent = self.budget_spent or Decimal("0.00")
         return (self.budget_allocated or Decimal("0.00")) - spent
+"""SupportCategory ORM model (defined in participant.py, re-exported here)."""
+from app.models.participant import SupportCategory  # noqa: F401

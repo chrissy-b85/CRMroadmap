@@ -7,11 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, require_role
 from app.db import get_db
 from app.schemas.plan import PlanIn, PlanListOut, PlanOut, PlanUpdate
-from app.schemas.support_category import (
-    SupportCategoryIn,
-    SupportCategoryOut,
-    SupportCategoryUpdate,
-)
 from app.services import plan_service as svc
 
 router = APIRouter(prefix="/plans", tags=["Plans"])
@@ -70,42 +65,3 @@ async def deactivate_plan(
 ):
     """Deactivate a plan (soft delete). Requires Admin role."""
     await svc.deactivate_plan(db, plan_id)
-
-
-@router.get("/{plan_id}/support-categories", response_model=list[SupportCategoryOut])
-async def list_support_categories(
-    plan_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
-):
-    """List all support categories and budgets for a plan."""
-    return await svc.get_plan_support_categories(db, plan_id)
-
-
-@router.post(
-    "/{plan_id}/support-categories",
-    response_model=SupportCategoryOut,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_support_category(
-    plan_id: UUID,
-    data: SupportCategoryIn,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("Coordinator")),
-):
-    """Add a support category with budget to a plan."""
-    return await svc.create_support_category(db, plan_id, data)
-
-
-@router.patch(
-    "/{plan_id}/support-categories/{category_id}", response_model=SupportCategoryOut
-)
-async def update_support_category(
-    plan_id: UUID,
-    category_id: UUID,
-    data: SupportCategoryUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("Coordinator")),
-):
-    """Update a support category budget. Requires Coordinator or Admin role."""
-    return await svc.update_support_category(db, plan_id, category_id, data)
