@@ -104,3 +104,26 @@ def validate_invoice_task(self, invoice_id: str):  # type: ignore[no-untyped-def
             exc,
         )
         raise self.retry(exc=exc, countdown=30) from exc
+
+
+@celery_app.task(
+    name="app.worker.tasks.reconcile_xero_payments", bind=True, max_retries=3
+)
+def reconcile_xero_payments(self):  # type: ignore[no-untyped-def]
+    """Daily task: poll Xero for payment status updates on APPROVED invoices."""
+    from app.db import AsyncSessionLocal
+    from app.services.xero_sync_service import reconcile_xero_invoices
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            return await reconcile_xero_invoices(db)
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "reconcile_xero_payments failed (attempt %s): %s",
+            self.request.retries + 1,
+            exc,
+        )
+        raise self.retry(exc=exc, countdown=300) from exc

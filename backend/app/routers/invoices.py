@@ -122,6 +122,7 @@ async def trigger_validation(
 @router.post("/{invoice_id}/approve", response_model=InvoiceOut)
 async def approve_invoice(
     invoice_id: UUID,
+    background_tasks: BackgroundTasks,
     notes: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("Coordinator")),
@@ -192,6 +193,24 @@ async def approve_invoice(
         .where(Invoice.id == invoice_id)
     )
     invoice = reload_result.scalar_one()
+
+    # Trigger Xero sync as a best-effort background task (errors are logged)
+    async def _try_xero_sync():
+        try:
+            from app.services.xero_sync_service import sync_approved_invoice_to_xero
+
+            await sync_approved_invoice_to_xero(db, invoice_id)
+        except Exception:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Xero sync skipped for invoice %s (no active connection or error)",
+                invoice_id,
+                exc_info=True,
+            )
+
+    background_tasks.add_task(_try_xero_sync)
+
     return invoice
 
 
