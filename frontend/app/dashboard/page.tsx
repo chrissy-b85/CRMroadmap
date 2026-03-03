@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getAllBudgetAlerts } from '@/lib/api/budget'
 import { getInvoices } from '@/lib/api/invoices'
 
 async function getInvoiceStats() {
@@ -18,8 +19,21 @@ async function getInvoiceStats() {
   }
 }
 
+async function getBudgetAlertStats() {
+  try {
+    const alerts = await getAllBudgetAlerts()
+    const criticalCount = alerts.filter((a) => a.severity === 'critical').length
+    const warningCount = alerts.filter((a) => a.severity === 'warning').length
+    const expiringCount = alerts.filter((a) => a.alert_type === 'PLAN_EXPIRING').length
+    return { criticalCount, warningCount, expiringCount }
+  } catch {
+    return { criticalCount: null, warningCount: null, expiringCount: null }
+  }
+}
+
 export default async function DashboardPage() {
   const { flaggedCount, pendingCount, approvedCount } = await getInvoiceStats()
+  const { criticalCount, warningCount, expiringCount } = await getBudgetAlertStats()
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -94,6 +108,59 @@ export default async function DashboardPage() {
             >
               View Invoice Queue
             </Link>
+          </div>
+        </section>
+
+        {/* Budget Health */}
+        <section className="mt-10">
+          <h2 className="mb-4 text-lg font-semibold text-gray-700">
+            Budget Health
+          </h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Critical alerts */}
+            <Link
+              href="/dashboard/budget/alerts?severity=critical"
+              className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm transition hover:shadow-md"
+            >
+              <div>
+                <p className="text-sm font-medium text-red-700">
+                  Critical Budget Alerts
+                </p>
+                <p className="mt-1 text-3xl font-bold text-red-900">
+                  {criticalCount ?? '—'}
+                </p>
+              </div>
+              <span className="text-3xl">🔴</span>
+            </Link>
+
+            {/* Warning alerts */}
+            <Link
+              href="/dashboard/budget/alerts?severity=warning"
+              className="flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-5 shadow-sm transition hover:shadow-md"
+            >
+              <div>
+                <p className="text-sm font-medium text-yellow-700">
+                  Warning Budget Alerts
+                </p>
+                <p className="mt-1 text-3xl font-bold text-yellow-900">
+                  {warningCount ?? '—'}
+                </p>
+              </div>
+              <span className="text-3xl">🟡</span>
+            </Link>
+
+            {/* Plans expiring */}
+            <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 p-5 shadow-sm">
+              <div>
+                <p className="text-sm font-medium text-orange-700">
+                  Plans Expiring ({'<'} 30 days)
+                </p>
+                <p className="mt-1 text-3xl font-bold text-orange-900">
+                  {expiringCount ?? '—'}
+                </p>
+              </div>
+              <span className="text-3xl">📅</span>
+            </div>
           </div>
         </section>
       </div>

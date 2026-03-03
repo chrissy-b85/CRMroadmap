@@ -61,6 +61,24 @@ def process_single_invoice(self, message_id: str):  # type: ignore[no-untyped-de
         raise self.retry(exc=exc, countdown=60) from exc
 
 
+@celery_app.task(name="app.worker.tasks.check_all_budget_alerts")
+def check_all_budget_alerts() -> dict:  # type: ignore[return]
+    """Daily task: check all active plans for budget alerts."""
+    from app.db import AsyncSessionLocal
+    from app.services.budget_tracking_service import get_all_active_plan_alerts
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            alerts = await get_all_active_plan_alerts(db)
+            return {"alert_count": len(alerts)}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("check_all_budget_alerts failed: %s", exc)
+        raise
+
+
 @celery_app.task(
     name="app.worker.tasks.validate_invoice_task", bind=True, max_retries=3
 )

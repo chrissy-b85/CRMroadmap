@@ -25,6 +25,7 @@ async def create_tables():
     """Create all tables once per test session."""
     # Import all models so that Base.metadata is fully populated before create_all.
     import app.models.audit_log  # noqa: F401
+    import app.models.budget_alert  # noqa: F401
     import app.models.document  # noqa: F401
     import app.models.email_thread  # noqa: F401
     import app.models.invoice  # noqa: F401
