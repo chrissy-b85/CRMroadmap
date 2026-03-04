@@ -1,9 +1,8 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/crm101-489114/ndis-crm-frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile.prod', 'frontend']
-
-images:
-  - 'gcr.io/crm101-489114/ndis-crm-frontend:$COMMIT_SHA'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/crm101-489114/ndis-crm-frontend/app:$COMMIT_SHA', '-f', 'frontend/Dockerfile.prod', 'frontend']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/crm101-489114/ndis-crm-frontend/app:$COMMIT_SHA']
 
 options:
   logging: CLOUD_LOGGING_ONLY
