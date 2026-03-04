@@ -3,8 +3,6 @@
  */
 import type { Invoice, InvoiceListResponse } from "@/lib/types/invoice";
 import type { PlanBudgetSummary, Plan } from "@/lib/types/portal";
-import type { Invoice, InvoiceListResponse } from '@/lib/types/invoice'
-import type { Plan, PlanBudgetSummary } from '@/lib/types/portal'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -74,14 +72,3 @@ export async function subscribeToPushNotifications(
     body: JSON.stringify(sub),
   });
 }
-  })
-}
-
-export async function getMyBudgetSummary(): Promise<PlanBudgetSummary> {
-  return portalFetch<PlanBudgetSummary>('/api/v1/portal/budget/summary')
-}
-
-export async function getMyBudgetHistory(): Promise<Plan[]> {
-  return portalFetch<Plan[]>('/api/v1/portal/budget/history')
-}
-
