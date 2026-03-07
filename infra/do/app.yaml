@@ -1,0 +1,189 @@
+name: ndis-crm
+region: syd
+
+services:
+  - name: backend
+    image:
+      registry_type: DOCR
+      repository: ndis-crm-backend
+      tag: latest
+    instance_count: 1
+    instance_size_slug: professional-xs
+    http_port: 8080
+    health_check:
+      http_path: /health
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_DOMAIN
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_AUDIENCE
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: STORAGE_BACKEND
+        value: spaces
+        scope: RUN_TIME
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_REGION
+        value: syd1
+        scope: RUN_TIME
+      - key: DO_SPACES_BUCKET
+        value: ndis-crm-files
+        scope: RUN_TIME
+      - key: DO_SPACES_ENDPOINT
+        value: https://syd1.digitaloceanspaces.com
+        scope: RUN_TIME
+      - key: GCP_PROJECT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: DOCUMENT_AI_PROCESSOR_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_TENANT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_SHARED_MAILBOX
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_FROM_MAILBOX
+        scope: RUN_TIME
+        type: SECRET
+      - key: XERO_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: XERO_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: XERO_REDIRECT_URI
+        scope: RUN_TIME
+        type: SECRET
+      - key: XERO_WEBHOOK_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: VAPID_PUBLIC_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: VAPID_PRIVATE_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: CELERY_BROKER_URL
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: celery-worker
+    image:
+      registry_type: DOCR
+      repository: ndis-crm-backend
+      tag: latest
+    instance_count: 1
+    instance_size_slug: professional-xs
+    run_command: celery -A app.celery_app worker --loglevel=info
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: STORAGE_BACKEND
+        value: spaces
+        scope: RUN_TIME
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_REGION
+        value: syd1
+        scope: RUN_TIME
+      - key: DO_SPACES_BUCKET
+        value: ndis-crm-files
+        scope: RUN_TIME
+      - key: DO_SPACES_ENDPOINT
+        value: https://syd1.digitaloceanspaces.com
+        scope: RUN_TIME
+      - key: GCP_PROJECT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: DOCUMENT_AI_PROCESSOR_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_TENANT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: GRAPH_SHARED_MAILBOX
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: celery-beat
+    image:
+      registry_type: DOCR
+      repository: ndis-crm-backend
+      tag: latest
+    instance_count: 1
+    instance_size_slug: professional-xs
+    run_command: celery -A app.celery_app beat --loglevel=info
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: frontend
+    image:
+      registry_type: DOCR
+      repository: ndis-crm-frontend
+      tag: latest
+    instance_count: 1
+    instance_size_slug: professional-xs
+    http_port: 3000
+    envs:
+      - key: NEXT_PUBLIC_API_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_BASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_ISSUER_BASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: AUTH0_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        scope: RUN_TIME
+        type: SECRET
