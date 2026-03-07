@@ -160,8 +160,8 @@ async def test_process_invoice_email_creates_record(db_session):
             "app.services.invoice_ingestion_service.GCSClient"
         ) as MockGCS,
         patch(
-            "app.services.invoice_ingestion_service.DocumentAIClient"
-        ) as MockDocAI,
+            "app.services.invoice_ingestion_service.get_ocr_client"
+        ) as MockGetOcrClient,
     ):
         mock_graph = AsyncMock()
         mock_graph.download_attachment.return_value = b"%PDF-fake"
@@ -176,7 +176,7 @@ async def test_process_invoice_email_creates_record(db_session):
 
         mock_docai = AsyncMock()
         mock_docai.parse_invoice.return_value = fake_parse_result
-        MockDocAI.return_value = mock_docai
+        MockGetOcrClient.return_value = mock_docai
 
         invoice = await process_invoice_email(db_session, fake_message)
 
@@ -236,7 +236,7 @@ async def test_process_invoice_email_logs_audit(db_session):
     with (
         patch("app.services.invoice_ingestion_service.GraphClient") as MockGraph,
         patch("app.services.invoice_ingestion_service.GCSClient") as MockGCS,
-        patch("app.services.invoice_ingestion_service.DocumentAIClient") as MockDocAI,
+        patch("app.services.invoice_ingestion_service.get_ocr_client") as MockGetOcrClient,
     ):
         mock_graph = AsyncMock()
         mock_graph.download_attachment.return_value = b"%PDF-audit"
@@ -251,7 +251,7 @@ async def test_process_invoice_email_logs_audit(db_session):
 
         mock_docai = AsyncMock()
         mock_docai.parse_invoice.return_value = fake_parse_result
-        MockDocAI.return_value = mock_docai
+        MockGetOcrClient.return_value = mock_docai
 
         invoice = await process_invoice_email(db_session, fake_message)
 

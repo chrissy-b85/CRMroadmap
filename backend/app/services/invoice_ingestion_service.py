@@ -13,8 +13,8 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.document_ai.client import DocumentAIClient
 from app.integrations.document_ai.parser import InvoiceParseResult
+from app.integrations.ocr import get_ocr_client
 from app.integrations.gcs.client import GCSClient
 from app.integrations.graph.client import GraphClient
 from app.integrations.graph.config import GRAPH_PROCESSED_FOLDER_ID
@@ -65,7 +65,7 @@ async def process_invoice_email(db: AsyncSession, message: dict) -> Invoice:
     """
     graph = GraphClient()
     gcs = GCSClient()
-    doc_ai = DocumentAIClient()
+    doc_ai = get_ocr_client()
 
     message_id: str = message["id"]
     subject: str = message.get("subject", "")
